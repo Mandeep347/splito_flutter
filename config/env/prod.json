@@ -1,0 +1,5 @@
+{
+  "ENV": "prod",
+  "APP_NAME": "Splito",
+  "API_BASE_URL": "https://api.splito.app/api/v1"
+}
