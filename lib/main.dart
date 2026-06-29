@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app.dart';
 import 'core/constants/storage_keys.dart';
@@ -37,6 +38,9 @@ void main() async {
   };
 
   try {
+    logger.info('Loading environment configuration (.env)...');
+    await dotenv.load(fileName: 'config/env/.env');
+
     logger.info('Initializing persistent Hive caching storage services...');
     
     // Access and initialize NoSQL database caching engine (Hive)
@@ -50,7 +54,7 @@ void main() async {
     logger.info('Hive databases successfully mounted.');
   } catch (error, stack) {
     logger.error(
-      'Hive database initialization failed',
+      'Pre-boot initialization failed',
       error: error,
       stackTrace: stack,
     );

@@ -1,13 +1,135 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:splito_flutter/core/errors/error_handler.dart';
+import 'package:splito_flutter/core/router/route_names.dart';
+import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
+import 'package:splito_flutter/features/auth/presentation/widgets/auth_form_wrapper.dart';
+import 'package:splito_flutter/shared/widgets/app_text_field.dart';
+import 'package:splito_flutter/shared/widgets/loading_overlay.dart';
+import 'package:splito_flutter/shared/widgets/primary_button.dart';
 
-class LoginPage extends StatelessWidget {
+/// Full screen view handling user credential login operations.
+class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
   @override
+  ConsumerState<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends ConsumerState<LoginPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _obscurePassword = true;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() ?? false) {
+      ref.read(authNotifierProvider.notifier).login(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Login Page (Placeholder)'),
+    // Listens to authentication state updates reactive-style
+    ref.listen<AsyncValue<AuthState>>(
+      authNotifierProvider,
+      (previous, next) {
+        if (next is AsyncData<AuthState>) {
+          final authState = next.value;
+          if (authState is AuthStateAuthenticated) {
+            context.goNamed(AppRoutes.groupsName);
+          }
+        } else if (next is AsyncError) {
+          final message = AppErrorHandler.toUserMessage(next.error);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
+      },
+    );
+
+    final authState = ref.watch(authNotifierProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Sign In'),
+      ),
+      body: LoadingOverlay(
+        isLoading: authState.isLoading,
+        child: AuthFormWrapper(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppTextField(
+                  controller: _emailController,
+                  labelText: 'Email',
+                  hintText: 'name@example.com',
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Email is required';
+                    }
+                    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+                    if (!emailRegex.hasMatch(value)) {
+                      return 'Enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  controller: _passwordController,
+                  labelText: 'Password',
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.done,
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                  onFieldSubmitted: (_) => _submit(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Password is required';
+                    }
+                    if (value.length < 8 || value.length > 128) {
+                      return 'Password must be between 8 and 128 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                PrimaryButton(
+                  label: 'Sign In',
+                  isLoading: authState.isLoading,
+                  onPressed: _submit,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => context.goNamed(AppRoutes.registerName),
+                  child: const Text("Don't have an account? Sign Up"),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

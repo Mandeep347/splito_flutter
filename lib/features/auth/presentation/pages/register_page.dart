@@ -1,13 +1,182 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:splito_flutter/core/errors/error_handler.dart';
+import 'package:splito_flutter/core/router/route_names.dart';
+import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
+import 'package:splito_flutter/features/auth/presentation/widgets/auth_form_wrapper.dart';
+import 'package:splito_flutter/shared/widgets/app_text_field.dart';
+import 'package:splito_flutter/shared/widgets/loading_overlay.dart';
+import 'package:splito_flutter/shared/widgets/primary_button.dart';
 
-class RegisterPage extends StatelessWidget {
+/// Full screen view handling user registration account creation.
+class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
 
   @override
+  ConsumerState<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends ConsumerState<RegisterPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState?.validate() ?? false) {
+      ref.read(authNotifierProvider.notifier).register(
+            name: _nameController.text.trim(),
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+          );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Register Page (Placeholder)'),
+    // Listens to authentication state updates reactive-style
+    ref.listen<AsyncValue<AuthState>>(
+      authNotifierProvider,
+      (previous, next) {
+        if (next is AsyncData<AuthState>) {
+          final authState = next.value;
+          if (authState is AuthStateAuthenticated) {
+            context.goNamed(AppRoutes.groupsName);
+          }
+        } else if (next is AsyncError) {
+          final message = AppErrorHandler.toUserMessage(next.error);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(message)),
+          );
+        }
+      },
+    );
+
+    final authState = ref.watch(authNotifierProvider);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Create Account'),
+      ),
+      body: LoadingOverlay(
+        isLoading: authState.isLoading,
+        child: AuthFormWrapper(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                AppTextField(
+                  controller: _nameController,
+                  labelText: 'Full Name',
+                  hintText: 'John Doe',
+                  textInputAction: TextInputAction.next,
+                  prefixIcon: const Icon(Icons.person_outline),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Name is required';
+                    }
+                    if (value.length > 100) {
+                      return 'Name must be 100 characters or less';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  controller: _emailController,
+                  labelText: 'Email',
+                  hintText: 'name@example.com',
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  prefixIcon: const Icon(Icons.email_outlined),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Email is required';
+                    }
+                    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+                    if (!emailRegex.hasMatch(value)) {
+                      return 'Enter a valid email address';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  controller: _passwordController,
+                  labelText: 'Password',
+                  obscureText: _obscurePassword,
+                  textInputAction: TextInputAction.next,
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Password is required';
+                    }
+                    if (value.length < 8 || value.length > 128) {
+                      return 'Password must be between 8 and 128 characters';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                AppTextField(
+                  controller: _confirmPasswordController,
+                  labelText: 'Confirm Password',
+                  obscureText: _obscureConfirmPassword,
+                  textInputAction: TextInputAction.done,
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                  ),
+                  onFieldSubmitted: (_) => _submit(),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Confirm password is required';
+                    }
+                    if (value != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 24),
+                PrimaryButton(
+                  label: 'Create Account',
+                  isLoading: authState.isLoading,
+                  onPressed: _submit,
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => context.goNamed(AppRoutes.loginName),
+                  child: const Text('Already have an account? Sign In'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

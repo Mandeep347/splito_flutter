@@ -1,31 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-
-import '../../features/auth/presentation/pages/login_page.dart';
-import '../../features/auth/presentation/pages/register_page.dart';
-import '../../features/groups/presentation/pages/group_details_page.dart';
-import '../../features/groups/presentation/pages/group_list_page.dart';
-import '../../features/profile/presentation/pages/profile_page.dart';
-import 'route_names.dart';
+import 'package:splito_flutter/core/router/route_names.dart';
+import 'package:splito_flutter/features/auth/presentation/pages/login_page.dart';
+import 'package:splito_flutter/features/auth/presentation/pages/register_page.dart';
+import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
+import 'package:splito_flutter/features/groups/presentation/pages/group_details_page.dart';
+import 'package:splito_flutter/features/groups/presentation/pages/group_list_page.dart';
+import 'package:splito_flutter/features/profile/presentation/pages/profile_page.dart';
 
 /// Global navigator keys for routing context access.
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final groupsTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'groupsTab');
 final profileTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'profileTab');
 
-/// Temporary auth provider. In production, this will read from the Authentication Feature.
-final authStateProvider = StateProvider<bool>((ref) => false);
-
 /// Notifier that triggers GoRouter refreshes on Riverpod provider updates.
 class RouterNotifier extends ChangeNotifier {
   final Ref _ref;
 
   RouterNotifier(this._ref) {
-    _ref.listen<bool>(
-      authStateProvider,
+    _ref.listen<AsyncValue<AuthState>>(
+      authNotifierProvider,
       (previous, next) {
-        if (previous != next) {
+        if (previous?.valueOrNull != next.valueOrNull) {
           notifyListeners();
         }
       },
@@ -41,14 +38,19 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) {
 /// Riverpod provider for GoRouter instance.
 final goRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
+  
+  // Watch the authenticating state directly within the provider closure.
+  // When auth state changes, the provider rebuilds and triggers redirect logic re-evaluation.
+  final authState = ref.watch(authNotifierProvider);
+  final isAuthenticated = authState.valueOrNull is AuthStateAuthenticated;
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.groupsPath,
     refreshListenable: notifier,
     redirect: (context, state) {
-      // Access authentication state
-      final isAuthenticated = ref.read(authStateProvider);
+      // If authNotifierProvider is loading → return null (stay on current)
+      if (authState.isLoading) return null;
 
       final isLoggingIn = state.matchedLocation == AppRoutes.loginPath;
       final isRegistering = state.matchedLocation == AppRoutes.registerPath;
