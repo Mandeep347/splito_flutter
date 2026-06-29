@@ -29,4 +29,35 @@ class ApiEndpoints {
 
   /// Endpoint to get or update the current user profile.
   static const String usersMe = '/users/me';
+
+  // Added User, Groups, Members, Expenses, Balances, and Settlements endpoints for future Phase 3 features
+  // User
+  static const String myBalances = '/users/me/balances';
+
+  // Groups
+  static const String groups = '/groups';
+  static String groupById(String id) => '/groups/$id';
+  static String archiveGroup(String id) => '/groups/$id/archive';
+
+  // Group Members
+  static String groupMembers(String groupId) =>
+      '/groups/$groupId/members';
+  static String groupMemberById(String groupId, String userId) =>
+      '/groups/$groupId/members/$userId';
+
+  // Expenses
+  static String groupExpenses(String groupId) =>
+      '/groups/$groupId/expenses';
+  static String expenseById(String id) => '/expenses/$id';
+  static String reverseExpense(String id) => '/expenses/$id/reverse';
+
+  // Balances
+  static String groupBalances(String groupId) =>
+      '/groups/$groupId/balances';
+  static String simplifiedBalances(String groupId) =>
+      '/groups/$groupId/balances/simplified';
+
+  // Settlements
+  static String groupSettlements(String groupId) =>
+      '/groups/$groupId/settlements';
 }

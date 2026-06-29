@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:splito_flutter/core/constants/app_constants.dart';
@@ -28,8 +29,10 @@ class _AuthInterceptor extends QueuedInterceptor {
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    // Skip token injection on auth routes
-    if (options.path == ApiEndpoints.login || options.path == ApiEndpoints.register) {
+    // Changed: Added refresh endpoints to auth route skip list to prevent recursive auth interceptor loops
+    if (options.path == ApiEndpoints.login ||
+        options.path == ApiEndpoints.register ||
+        options.path == ApiEndpoints.refresh) {
       return handler.next(options);
     }
 
@@ -56,12 +59,10 @@ class _AuthInterceptor extends QueuedInterceptor {
 
       if (refreshToken != null) {
         try {
+          // Changed: Removed Options header containing authorization bearer to prevent API token mismatch errors on FastAPI refresh
           final refreshResponse = await _refreshDio.post<dynamic>(
             ApiEndpoints.refresh,
             data: {'refresh_token': refreshToken},
-            options: Options(
-              headers: {'Authorization': 'Bearer $refreshToken'},
-            ),
           );
 
           if (refreshResponse.statusCode == 200 || refreshResponse.statusCode == 201) {
@@ -155,14 +156,16 @@ final _rawDioProvider = Provider<Dio>((ref) {
   dio.interceptors.addAll([
     _AuthInterceptor(ref),
     _ErrorInterceptor(),
-    PrettyDioLogger(
-      requestHeader: true,
-      requestBody: true,
-      responseBody: true,
-      responseHeader: false,
-      error: true,
-      compact: true,
-    ),
+    // Changed: Conditionally add PrettyDioLogger in debug mode to prevent leaking tokens or data in production environments
+    if (kDebugMode)
+      PrettyDioLogger(
+        requestHeader: true,
+        requestBody: true,
+        responseBody: true,
+        responseHeader: false,
+        error: true,
+        compact: true,
+      ),
   ]);
 
   return dio;

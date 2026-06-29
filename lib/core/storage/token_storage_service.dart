@@ -36,8 +36,11 @@ class TokenStorageService implements ITokenStorageService {
     required String accessToken,
     required String refreshToken,
   }) async {
-    await _storage.write(key: _accessTokenKey, value: accessToken);
-    await _storage.write(key: _refreshTokenKey, value: refreshToken);
+    // Changed saveTokens to write both tokens in parallel using Future.wait to prevent sequential awaits
+    await Future.wait([
+      _storage.write(key: _accessTokenKey, value: accessToken),
+      _storage.write(key: _refreshTokenKey, value: refreshToken),
+    ]);
   }
 
   @override
@@ -52,8 +55,11 @@ class TokenStorageService implements ITokenStorageService {
 
   @override
   Future<void> clearTokens() async {
-    await _storage.delete(key: _accessTokenKey);
-    await _storage.delete(key: _refreshTokenKey);
+    // Changed clearTokens to delete both tokens in parallel using Future.wait to prevent sequential awaits
+    await Future.wait([
+      _storage.delete(key: _accessTokenKey),
+      _storage.delete(key: _refreshTokenKey),
+    ]);
   }
 
   @override

@@ -12,6 +12,7 @@ class SplitoApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(goRouterProvider);
+    // Changed: Watching themeModeProvider dynamically instead of using a hardcoded const ThemeMode local variable
     final selectedThemeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(

@@ -9,7 +9,7 @@ import 'package:splito_flutter/features/groups/presentation/pages/group_details_
 import 'package:splito_flutter/features/groups/presentation/pages/group_list_page.dart';
 import 'package:splito_flutter/features/profile/presentation/pages/profile_page.dart';
 
-/// Global navigator keys for routing context access.
+/// Global navigator keys for context access.
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final groupsTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'groupsTab');
 final profileTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'profileTab');
@@ -39,16 +39,15 @@ final routerNotifierProvider = Provider<RouterNotifier>((ref) {
 final goRouterProvider = Provider<GoRouter>((ref) {
   final notifier = ref.watch(routerNotifierProvider);
   
-  // Watch the authenticating state directly within the provider closure.
-  // When auth state changes, the provider rebuilds and triggers redirect logic re-evaluation.
-  final authState = ref.watch(authNotifierProvider);
-  final isAuthenticated = authState.valueOrNull is AuthStateAuthenticated;
-
+  // Changed: Removed ref.watch(authNotifierProvider) from provider body to prevent router rebuilds. Auth state is instead retrieved via ref.read inside the redirect callback.
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: AppRoutes.groupsPath,
     refreshListenable: notifier,
     redirect: (context, state) {
+      final authState = ref.read(authNotifierProvider);
+      final isAuthenticated = authState.valueOrNull is AuthStateAuthenticated;
+
       // If authNotifierProvider is loading → return null (stay on current)
       if (authState.isLoading) return null;
 

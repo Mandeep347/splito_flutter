@@ -58,14 +58,16 @@ final getMeUseCaseProvider = Provider<GetMeUseCase>((ref) {
 class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
+    // Changed: Moved all ref.watch calls to before the first await to prevent undefined behavior in Riverpod.
     final repository = ref.watch(authRepositoryProvider);
+    final getMe = ref.watch(getMeUseCaseProvider);
+
     final hasToken = await repository.isAuthenticated();
     if (!hasToken) {
       return const AuthStateUnauthenticated();
     }
 
     try {
-      final getMe = ref.watch(getMeUseCaseProvider);
       final user = await getMe();
       return AuthStateAuthenticated(user: user);
     } catch (_) {

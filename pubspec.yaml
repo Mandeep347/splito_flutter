@@ -35,7 +35,6 @@ dependencies:
 
   # State Management & Navigation
   flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
   go_router: ^14.2.0
 
   # Networking
@@ -60,6 +59,8 @@ dev_dependencies:
   flutter_lints: ^3.0.2
   build_runner: ^2.4.10
   riverpod_generator: ^2.4.0
+  # Moved riverpod_annotation here because it is not used as a runtime dependency
+  riverpod_annotation: ^2.3.5
   freezed: ^2.5.2
   json_serializable: ^6.8.0
   hive_generator: ^2.0.1
