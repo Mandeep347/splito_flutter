@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/core/errors/failures.dart';
-import 'package:splito_flutter/core/logger/app_logger.dart';
-import 'package:splito_flutter/features/groups/data/datasources/group_local_datasource.dart';
 import 'package:splito_flutter/features/groups/data/repositories/group_repository_impl.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group_member.dart';
@@ -68,20 +66,7 @@ class MyGroupsNotifier extends AsyncNotifier<List<Group>> {
   @override
   FutureOr<List<Group>> build() async {
     final useCase = ref.watch(getMyGroupsUseCaseProvider);
-    final localDatasource = ref.watch(groupLocalDatasourceProvider);
-    final logger = ref.watch(loggerProvider);
-
-    try {
-      return await useCase();
-    } on NetworkFailure {
-      final cachedModels = await localDatasource.getCachedGroups();
-      if (cachedModels != null) {
-        // Log warning for local serving
-        logger.warning('Failed to fetch groups from network. Serving cached fallback.');
-        return cachedModels.map((m) => m.toEntity()).toList();
-      }
-      rethrow;
-    }
+    return useCase();
   }
 
   /// Invalidates the notifier to force a refresh.

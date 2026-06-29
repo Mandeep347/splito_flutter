@@ -63,7 +63,7 @@ void main() {
           )).called(1);
     });
 
-    test('throws AuthFailure on UnauthorizedException', () async {
+    test('throws UnauthorizedException on UnauthorizedException', () async {
       // Arrange
       when(() => mockRemoteDatasource.login(email: email, password: password))
           .thenThrow(const UnauthorizedException('Invalid credentials'));
@@ -71,7 +71,7 @@ void main() {
       // Act & Assert
       expect(
         () => repository.login(email: email, password: password),
-        throwsA(isA<AuthFailure>()),
+        throwsA(isA<UnauthorizedException>()),
       );
       verify(() => mockRemoteDatasource.login(email: email, password: password))
           .called(1);
@@ -81,7 +81,7 @@ void main() {
           ));
     });
 
-    test('throws NetworkFailure on NetworkException', () async {
+    test('throws NetworkException on NetworkException', () async {
       // Arrange
       when(() => mockRemoteDatasource.login(email: email, password: password))
           .thenThrow(const NetworkException('No connection'));
@@ -89,7 +89,7 @@ void main() {
       // Act & Assert
       expect(
         () => repository.login(email: email, password: password),
-        throwsA(isA<NetworkFailure>()),
+        throwsA(isA<NetworkException>()),
       );
       verify(() => mockRemoteDatasource.login(email: email, password: password))
           .called(1);

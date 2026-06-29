@@ -36,30 +36,72 @@ class TokenStorageService implements ITokenStorageService {
     required String accessToken,
     required String refreshToken,
   }) async {
-    // Changed saveTokens to write both tokens in parallel using Future.wait to prevent sequential awaits
-    await Future.wait([
-      _storage.write(key: _accessTokenKey, value: accessToken),
-      _storage.write(key: _refreshTokenKey, value: refreshToken),
-    ]);
+    try {
+      await Future.wait([
+        _storage.write(key: _accessTokenKey, value: accessToken),
+        _storage.write(key: _refreshTokenKey, value: refreshToken),
+      ]);
+    } catch (_) {
+      // Hardware keystore unavailable (emulator / no lock screen).
+      // Fall back to standard shared preferences storage.
+      // ignore: avoid_print
+      print('Warning: Secure storage write failed. Falling back to plain storage.');
+      const fallbackStorage = FlutterSecureStorage(
+        aOptions: AndroidOptions(encryptedSharedPreferences: false),
+      );
+      await Future.wait([
+        fallbackStorage.write(key: _accessTokenKey, value: accessToken),
+        fallbackStorage.write(key: _refreshTokenKey, value: refreshToken),
+      ]);
+    }
   }
 
   @override
   Future<String?> getAccessToken() async {
-    return _storage.read(key: _accessTokenKey);
+    try {
+      return await _storage.read(key: _accessTokenKey);
+    } catch (_) {
+      // ignore: avoid_print
+      print('Warning: Secure storage read failed. Falling back to plain storage.');
+      const fallbackStorage = FlutterSecureStorage(
+        aOptions: AndroidOptions(encryptedSharedPreferences: false),
+      );
+      return await fallbackStorage.read(key: _accessTokenKey);
+    }
   }
 
   @override
   Future<String?> getRefreshToken() async {
-    return _storage.read(key: _refreshTokenKey);
+    try {
+      return await _storage.read(key: _refreshTokenKey);
+    } catch (_) {
+      // ignore: avoid_print
+      print('Warning: Secure storage read failed. Falling back to plain storage.');
+      const fallbackStorage = FlutterSecureStorage(
+        aOptions: AndroidOptions(encryptedSharedPreferences: false),
+      );
+      return await fallbackStorage.read(key: _refreshTokenKey);
+    }
   }
 
   @override
   Future<void> clearTokens() async {
-    // Changed clearTokens to delete both tokens in parallel using Future.wait to prevent sequential awaits
-    await Future.wait([
-      _storage.delete(key: _accessTokenKey),
-      _storage.delete(key: _refreshTokenKey),
-    ]);
+    try {
+      await Future.wait([
+        _storage.delete(key: _accessTokenKey),
+        _storage.delete(key: _refreshTokenKey),
+      ]);
+    } catch (_) {
+      // ignore: avoid_print
+      print('Warning: Secure storage delete failed. Falling back to plain storage.');
+      const fallbackStorage = FlutterSecureStorage(
+        aOptions: AndroidOptions(encryptedSharedPreferences: false),
+      );
+      await Future.wait([
+        fallbackStorage.delete(key: _accessTokenKey),
+        fallbackStorage.delete(key: _refreshTokenKey),
+      ]);
+    }
   }
 
   @override
@@ -75,9 +117,10 @@ final tokenStorageServiceProvider = Provider<ITokenStorageService>((ref) {
   const secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
+      resetOnError: true,
     ),
     iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock,
+      accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
   );
   return const TokenStorageService(secureStorage);

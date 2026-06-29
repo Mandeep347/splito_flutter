@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:splito_flutter/core/errors/error_handler.dart';
+import 'package:splito_flutter/core/errors/failures.dart';
 import 'package:splito_flutter/core/router/route_names.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
 import 'package:splito_flutter/features/auth/presentation/widgets/auth_form_wrapper.dart';
@@ -52,28 +52,37 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     ref.listen<AsyncValue<AuthState>>(
       authNotifierProvider,
       (previous, next) {
-        if (next is AsyncData<AuthState>) {
-          final authState = next.value;
-          if (authState is AuthStateAuthenticated) {
-            context.goNamed(AppRoutes.groupsName);
-          }
-        } else if (next is AsyncError) {
-          final message = AppErrorHandler.toUserMessage(next.error);
+        // Navigate on successful authentication
+        if (next.valueOrNull is AuthStateAuthenticated) {
+          context.goNamed(AppRoutes.groupsName);
+          return;
+        }
+        // Show error and clear loading state on failure
+        if (next is AsyncError) {
+          final error = next.error;
+          final message = error is Failure
+              ? error.message
+              : 'Registration failed. Please try again.';
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
+            SnackBar(
+              content: Text(message),
+              backgroundColor: Theme.of(context).colorScheme.error,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         }
       },
     );
 
-    final authState = ref.watch(authNotifierProvider);
+    final authAsync = ref.watch(authNotifierProvider);
+    final isLoading = authAsync is AsyncLoading;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Create Account'),
       ),
       body: LoadingOverlay(
-        isLoading: authState.isLoading,
+        isLoading: isLoading,
         child: AuthFormWrapper(
           child: Form(
             key: _formKey,
@@ -165,7 +174,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                 const SizedBox(height: 24),
                 PrimaryButton(
                   label: 'Create Account',
-                  isLoading: authState.isLoading,
+                  isLoading: isLoading,
                   onPressed: _submit,
                 ),
                 const SizedBox(height: 16),
