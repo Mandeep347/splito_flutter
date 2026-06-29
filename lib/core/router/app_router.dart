@@ -7,6 +7,7 @@ import 'package:splito_flutter/features/auth/presentation/pages/register_page.da
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
 import 'package:splito_flutter/features/groups/presentation/pages/group_details_page.dart';
 import 'package:splito_flutter/features/groups/presentation/pages/group_list_page.dart';
+import 'package:splito_flutter/features/groups/presentation/pages/group_members_page.dart';
 import 'package:splito_flutter/features/profile/presentation/pages/profile_page.dart';
 
 /// Global navigator keys for context access.
@@ -103,6 +104,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) {
                       final groupId = state.pathParameters['groupId'] ?? '';
                       return GroupDetailsPage(groupId: groupId);
+                    },
+                  ),
+                  GoRoute(
+                    name: AppRoutes.groupMembersName,
+                    path: AppRoutes.groupMembersPath,
+                    builder: (context, state) {
+                      final groupId = state.pathParameters['groupId'] ?? '';
+                      final extra = state.extra as Map<String, dynamic>?;
+                      final groupCreatedBy = extra?['createdBy'] as String? ?? '';
+                      return GroupMembersPage(
+                        groupId: groupId,
+                        groupCreatedBy: groupCreatedBy,
+                      );
                     },
                   ),
                 ],

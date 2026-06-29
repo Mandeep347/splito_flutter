@@ -14,6 +14,12 @@ abstract class AppRoutes {
   static const String groupDetailsName = 'groupDetails';
   static const String groupDetailsPath = 'details/:groupId'; // Nested sub-route
 
+  static const String addExpenseName = 'addExpense';
+  static const String addExpensePath = 'details/:groupId/expenses/new';
+
+  static const String groupMembersName = 'groupMembers';
+  static const String groupMembersPath = 'details/:groupId/members';
+
   // Profile Tab Routes (Nested inside StatefulShellRoute)
   static const String profileName = 'profile';
   static const String profilePath = '/profile';

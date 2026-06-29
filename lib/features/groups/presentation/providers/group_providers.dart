@@ -1,0 +1,288 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:splito_flutter/core/errors/failures.dart';
+import 'package:splito_flutter/core/logger/app_logger.dart';
+import 'package:splito_flutter/features/groups/data/datasources/group_local_datasource.dart';
+import 'package:splito_flutter/features/groups/data/repositories/group_repository_impl.dart';
+import 'package:splito_flutter/features/groups/domain/entities/group.dart';
+import 'package:splito_flutter/features/groups/domain/entities/group_member.dart';
+import 'package:splito_flutter/features/groups/domain/usecases/add_member_usecase.dart';
+import 'package:splito_flutter/features/groups/domain/usecases/archive_group_usecase.dart';
+import 'package:splito_flutter/features/groups/domain/usecases/create_group_usecase.dart';
+import 'package:splito_flutter/features/groups/domain/usecases/get_group_by_id_usecase.dart';
+import 'package:splito_flutter/features/groups/domain/usecases/get_members_usecase.dart';
+import 'package:splito_flutter/features/groups/domain/usecases/get_my_groups_usecase.dart';
+import 'package:splito_flutter/features/groups/domain/usecases/remove_member_usecase.dart';
+import 'package:splito_flutter/features/groups/domain/usecases/update_group_usecase.dart';
+
+/// Provider exposing [GetMyGroupsUseCase].
+final getMyGroupsUseCaseProvider = Provider<GetMyGroupsUseCase>((ref) {
+  final repository = ref.watch(groupRepositoryProvider);
+  return GetMyGroupsUseCase(repository: repository);
+});
+
+/// Provider exposing [GetGroupByIdUseCase].
+final getGroupByIdUseCaseProvider = Provider<GetGroupByIdUseCase>((ref) {
+  final repository = ref.watch(groupRepositoryProvider);
+  return GetGroupByIdUseCase(repository: repository);
+});
+
+/// Provider exposing [CreateGroupUseCase].
+final createGroupUseCaseProvider = Provider<CreateGroupUseCase>((ref) {
+  final repository = ref.watch(groupRepositoryProvider);
+  return CreateGroupUseCase(repository: repository);
+});
+
+/// Provider exposing [UpdateGroupUseCase].
+final updateGroupUseCaseProvider = Provider<UpdateGroupUseCase>((ref) {
+  final repository = ref.watch(groupRepositoryProvider);
+  return UpdateGroupUseCase(repository: repository);
+});
+
+/// Provider exposing [ArchiveGroupUseCase].
+final archiveGroupUseCaseProvider = Provider<ArchiveGroupUseCase>((ref) {
+  final repository = ref.watch(groupRepositoryProvider);
+  return ArchiveGroupUseCase(repository: repository);
+});
+
+/// Provider exposing [GetMembersUseCase].
+final getMembersUseCaseProvider = Provider<GetMembersUseCase>((ref) {
+  final repository = ref.watch(groupRepositoryProvider);
+  return GetMembersUseCase(repository: repository);
+});
+
+/// Provider exposing [AddMemberUseCase].
+final addMemberUseCaseProvider = Provider<AddMemberUseCase>((ref) {
+  final repository = ref.watch(groupRepositoryProvider);
+  return AddMemberUseCase(repository: repository);
+});
+
+/// Provider exposing [RemoveMemberUseCase].
+final removeMemberUseCaseProvider = Provider<RemoveMemberUseCase>((ref) {
+  final repository = ref.watch(groupRepositoryProvider);
+  return RemoveMemberUseCase(repository: repository);
+});
+
+/// Notifier that manages retrieving and listing the user's joined groups.
+class MyGroupsNotifier extends AsyncNotifier<List<Group>> {
+  @override
+  FutureOr<List<Group>> build() async {
+    final useCase = ref.watch(getMyGroupsUseCaseProvider);
+    final localDatasource = ref.watch(groupLocalDatasourceProvider);
+    final logger = ref.watch(loggerProvider);
+
+    try {
+      return await useCase();
+    } on NetworkFailure {
+      final cachedModels = await localDatasource.getCachedGroups();
+      if (cachedModels != null) {
+        // Log warning for local serving
+        logger.warning('Failed to fetch groups from network. Serving cached fallback.');
+        return cachedModels.map((m) => m.toEntity()).toList();
+      }
+      rethrow;
+    }
+  }
+
+  /// Invalidates the notifier to force a refresh.
+  void refresh() {
+    ref.invalidateSelf();
+  }
+}
+
+/// Provider exposing [MyGroupsNotifier].
+final myGroupsProvider =
+    AsyncNotifierProvider<MyGroupsNotifier, List<Group>>(() {
+  return MyGroupsNotifier();
+});
+
+/// Notifier that manages fetching detailed records for a single group by ID.
+class GroupDetailNotifier extends FamilyAsyncNotifier<Group, String> {
+  @override
+  FutureOr<Group> build(String arg) {
+    final useCase = ref.watch(getGroupByIdUseCaseProvider);
+    return useCase(groupId: arg);
+  }
+
+  /// Invalidates this specific notifier.
+  void refresh() {
+    ref.invalidateSelf();
+  }
+}
+
+/// Family provider exposing detailed group states.
+final groupDetailProvider =
+    AsyncNotifierProvider.family<GroupDetailNotifier, Group, String>(() {
+  return GroupDetailNotifier();
+});
+
+/// Notifier executing the creation of a new group.
+class CreateGroupNotifier extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {
+    // Default initialization, returns nothing
+  }
+
+  /// Triggers group creation.
+  Future<void> create({
+    required String name,
+    required String currency,
+  }) async {
+    state = const AsyncLoading<void>();
+    try {
+      final useCase = ref.read(createGroupUseCaseProvider);
+      await useCase(name: name, currency: currency);
+      ref.invalidate(myGroupsProvider);
+      state = const AsyncData<void>(null);
+    } on Failure catch (failure, stackTrace) {
+      state = AsyncError<void>(failure, stackTrace);
+      rethrow;
+    }
+  }
+}
+
+/// Provider exposing [CreateGroupNotifier].
+final createGroupProvider =
+    AsyncNotifierProvider<CreateGroupNotifier, void>(() {
+  return CreateGroupNotifier();
+});
+
+/// Notifier executing group profile details update.
+class UpdateGroupNotifier extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {
+    // Default initialization, returns nothing
+  }
+
+  /// Triggers updating group details.
+  Future<void> updateGroup({
+    required String groupId,
+    required String name,
+  }) async {
+    state = const AsyncLoading<void>();
+    try {
+      final useCase = ref.read(updateGroupUseCaseProvider);
+      await useCase(groupId: groupId, name: name);
+      ref.invalidate(myGroupsProvider);
+      ref.invalidate(groupDetailProvider(groupId));
+      state = const AsyncData<void>(null);
+    } on Failure catch (failure, stackTrace) {
+      state = AsyncError<void>(failure, stackTrace);
+      rethrow;
+    }
+  }
+}
+
+/// Provider exposing [UpdateGroupNotifier].
+final updateGroupProvider =
+    AsyncNotifierProvider<UpdateGroupNotifier, void>(() {
+  return UpdateGroupNotifier();
+});
+
+/// Notifier executing group archiving operations.
+class ArchiveGroupNotifier extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {
+    // Default initialization, returns nothing
+  }
+
+  /// Triggers archiving group.
+  Future<void> archive({required String groupId}) async {
+    state = const AsyncLoading<void>();
+    try {
+      final useCase = ref.read(archiveGroupUseCaseProvider);
+      await useCase(groupId: groupId);
+      ref.invalidate(myGroupsProvider);
+      ref.invalidate(groupDetailProvider(groupId));
+      state = const AsyncData<void>(null);
+    } on Failure catch (failure, stackTrace) {
+      state = AsyncError<void>(failure, stackTrace);
+      rethrow;
+    }
+  }
+}
+
+/// Provider exposing [ArchiveGroupNotifier].
+final archiveGroupProvider =
+    AsyncNotifierProvider<ArchiveGroupNotifier, void>(() {
+  return ArchiveGroupNotifier();
+});
+
+/// Notifier that manages fetching and listing the group members.
+class GroupMembersNotifier extends FamilyAsyncNotifier<List<GroupMember>, String> {
+  @override
+  FutureOr<List<GroupMember>> build(String arg) {
+    final useCase = ref.watch(getMembersUseCaseProvider);
+    return useCase(groupId: arg);
+  }
+}
+
+/// Family provider exposing the member list of a group.
+final groupMembersProvider = AsyncNotifierProvider.family<
+    GroupMembersNotifier, List<GroupMember>, String>(() {
+  return GroupMembersNotifier();
+});
+
+/// Notifier executing member invitation / additions.
+class AddMemberNotifier extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {
+    // Default initialization, returns nothing
+  }
+
+  /// Adds a new member to a group by email.
+  Future<void> add({
+    required String groupId,
+    required String email,
+  }) async {
+    state = const AsyncLoading<void>();
+    try {
+      final useCase = ref.read(addMemberUseCaseProvider);
+      await useCase(groupId: groupId, email: email);
+      ref.invalidate(groupDetailProvider(groupId));
+      ref.invalidate(groupMembersProvider(groupId));
+      state = const AsyncData<void>(null);
+    } on Failure catch (failure, stackTrace) {
+      state = AsyncError<void>(failure, stackTrace);
+      rethrow;
+    }
+  }
+}
+
+/// Provider exposing [AddMemberNotifier].
+final addMemberProvider =
+    AsyncNotifierProvider<AddMemberNotifier, void>(() {
+  return AddMemberNotifier();
+});
+
+/// Notifier executing member removal actions.
+class RemoveMemberNotifier extends AsyncNotifier<void> {
+  @override
+  FutureOr<void> build() {
+    // Default initialization, returns nothing
+  }
+
+  /// Removes an existing member from a group.
+  Future<void> remove({
+    required String groupId,
+    required String userId,
+  }) async {
+    state = const AsyncLoading<void>();
+    try {
+      final useCase = ref.read(removeMemberUseCaseProvider);
+      await useCase(groupId: groupId, userId: userId);
+      ref.invalidate(groupDetailProvider(groupId));
+      ref.invalidate(groupMembersProvider(groupId));
+      state = const AsyncData<void>(null);
+    } on Failure catch (failure, stackTrace) {
+      state = AsyncError<void>(failure, stackTrace);
+      rethrow;
+    }
+  }
+}
+
+/// Provider exposing [RemoveMemberNotifier].
+final removeMemberProvider =
+    AsyncNotifierProvider<RemoveMemberNotifier, void>(() {
+  return RemoveMemberNotifier();
+});

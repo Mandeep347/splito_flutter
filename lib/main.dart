@@ -50,6 +50,7 @@ void main() async {
     // Open persistent database files (boxes) required by the app core
     await hiveStorage.openBox(StorageKeys.settingsBox);
     await hiveStorage.openBox(StorageKeys.offlineQueueBox);
+    await hiveStorage.openBox(StorageKeys.groupsCacheBox);
     
     logger.info('Hive databases successfully mounted.');
   } catch (error, stack) {

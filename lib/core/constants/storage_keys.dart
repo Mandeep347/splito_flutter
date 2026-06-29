@@ -7,7 +7,7 @@ abstract class StorageKeys {
 
   // --- Hive Box Names ---
   static const String settingsBox = 'settings_box';
-  static const String groupsCacheBox = 'groups_cache_box';
+  static const String groupsCacheBox = 'groups_cache';
   static const String friendsCacheBox = 'friends_cache_box';
   static const String offlineQueueBox = 'offline_queue_box';
 
