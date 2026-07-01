@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/core/constants/app_constants.dart';
 import 'package:splito_flutter/core/network/dio_client.dart';
@@ -44,16 +43,16 @@ abstract interface class IGroupRemoteDatasource {
   });
 }
 
-/// Remote datasource implementation using [Dio].
+/// Remote datasource implementation using [DioClient].
 class GroupRemoteDatasource implements IGroupRemoteDatasource {
-  final Dio dio;
+  final DioClient _client;
 
   /// Creates a new [GroupRemoteDatasource] instance.
-  const GroupRemoteDatasource({required this.dio});
+  const GroupRemoteDatasource(this._client);
 
   @override
   Future<List<GroupModel>> getMyGroups() async {
-    final response = await dio.get<dynamic>(ApiEndpoints.groups);
+    final response = await _client.get<dynamic>(ApiEndpoints.groups);
     final list = response.data as List<dynamic>;
     return list
         .map((item) => GroupModel.fromJson(item as Map<String, dynamic>))
@@ -62,7 +61,7 @@ class GroupRemoteDatasource implements IGroupRemoteDatasource {
 
   @override
   Future<GroupModel> getGroupById({required String groupId}) async {
-    final response = await dio.get<dynamic>(ApiEndpoints.groupById(groupId));
+    final response = await _client.get<dynamic>(ApiEndpoints.groupById(groupId));
     return GroupModel.fromJson(response.data as Map<String, dynamic>);
   }
 
@@ -71,7 +70,7 @@ class GroupRemoteDatasource implements IGroupRemoteDatasource {
     required String name,
     required String currency,
   }) async {
-    final response = await dio.post<dynamic>(
+    final response = await _client.post<dynamic>(
       ApiEndpoints.groups,
       data: {
         'name': name,
@@ -86,7 +85,7 @@ class GroupRemoteDatasource implements IGroupRemoteDatasource {
     required String groupId,
     required String name,
   }) async {
-    final response = await dio.patch<dynamic>(
+    final response = await _client.patch<dynamic>(
       ApiEndpoints.groupById(groupId),
       data: {
         'name': name,
@@ -97,13 +96,13 @@ class GroupRemoteDatasource implements IGroupRemoteDatasource {
 
   @override
   Future<GroupModel> archiveGroup({required String groupId}) async {
-    final response = await dio.patch<dynamic>(ApiEndpoints.archiveGroup(groupId));
+    final response = await _client.patch<dynamic>(ApiEndpoints.archiveGroup(groupId));
     return GroupModel.fromJson(response.data as Map<String, dynamic>);
   }
 
   @override
   Future<List<GroupMemberModel>> getMembers({required String groupId}) async {
-    final response = await dio.get<dynamic>(ApiEndpoints.groupMembers(groupId));
+    final response = await _client.get<dynamic>(ApiEndpoints.groupMembers(groupId));
     final list = response.data as List<dynamic>;
     return list
         .map((item) => GroupMemberModel.fromJson(item as Map<String, dynamic>))
@@ -115,7 +114,7 @@ class GroupRemoteDatasource implements IGroupRemoteDatasource {
     required String groupId,
     required String email,
   }) async {
-    final response = await dio.post<dynamic>(
+    final response = await _client.post<dynamic>(
       ApiEndpoints.groupMembers(groupId),
       data: {
         'email': email,
@@ -129,7 +128,7 @@ class GroupRemoteDatasource implements IGroupRemoteDatasource {
     required String groupId,
     required String userId,
   }) async {
-    await dio.delete<dynamic>(
+    await _client.delete<dynamic>(
       ApiEndpoints.groupMemberById(groupId, userId),
     );
   }
@@ -137,6 +136,6 @@ class GroupRemoteDatasource implements IGroupRemoteDatasource {
 
 /// Provider exposing [IGroupRemoteDatasource].
 final groupRemoteDatasourceProvider = Provider<IGroupRemoteDatasource>((ref) {
-  final dio = ref.watch(dioClientProvider).dio;
-  return GroupRemoteDatasource(dio: dio);
+  final dioClient = ref.watch(dioClientProvider);
+  return GroupRemoteDatasource(dioClient);
 });

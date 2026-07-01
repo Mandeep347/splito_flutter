@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:splito_flutter/core/errors/failures.dart';
 import 'package:splito_flutter/core/logger/app_logger.dart';
+import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
 import 'package:splito_flutter/features/groups/data/datasources/group_local_datasource.dart';
 import 'package:splito_flutter/features/groups/data/repositories/group_repository_impl.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group.dart';
@@ -50,6 +51,9 @@ void main() {
 
     container = ProviderContainer(
       overrides: [
+        // Simulate authenticated state so MyGroupsNotifier.build() proceeds
+        // to call the usecase instead of short-circuiting with [].
+        authStateProvider.overrideWithValue(true),
         groupRepositoryProvider.overrideWithValue(mockRepository),
         groupLocalDatasourceProvider.overrideWithValue(mockLocalDatasource),
         loggerProvider.overrideWithValue(mockLogger),

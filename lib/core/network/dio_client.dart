@@ -7,12 +7,88 @@ import 'package:splito_flutter/core/errors/exceptions.dart';
 import 'package:splito_flutter/core/storage/token_storage_service.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
 
-/// Wrapped network client class managing REST API operations.
+/// Wrapped network client providing REST API operations with automatic
+/// error unwrapping.
+///
+/// Datasources should call [get], [post], [patch], [delete] instead of
+/// accessing [dio] directly. These methods catch the [DioException] produced
+/// by the interceptor chain and re-throw the inner typed exception
+/// (e.g. [ForbiddenException], [NetworkException]) so that repositories
+/// and usecases can catch them with plain `on ForbiddenException` clauses.
 class DioClient {
   /// The underlying pre-configured [Dio] client.
+  ///
+  /// Prefer using the typed helper methods ([get], [post], …) which
+  /// automatically unwrap [DioException.error].  Access [dio] directly
+  /// only when you need low-level Dio features (e.g. streaming).
   final Dio dio;
 
   const DioClient(this.dio);
+
+  // ──────────────────────────────────────────────────────────────
+  //  Typed helper methods — catch DioException, rethrow inner error
+  // ──────────────────────────────────────────────────────────────
+
+  /// Sends a GET request to [path] and unwraps errors.
+  Future<Response<T>> get<T>(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+  }) async {
+    try {
+      return await dio.get<T>(path, queryParameters: queryParameters, options: options);
+    } on DioException catch (e) {
+      _rethrowTyped(e);
+    }
+  }
+
+  /// Sends a POST request to [path] and unwraps errors.
+  Future<Response<T>> post<T>(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) async {
+    try {
+      return await dio.post<T>(path, data: data, options: options);
+    } on DioException catch (e) {
+      _rethrowTyped(e);
+    }
+  }
+
+  /// Sends a PATCH request to [path] and unwraps errors.
+  Future<Response<T>> patch<T>(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) async {
+    try {
+      return await dio.patch<T>(path, data: data, options: options);
+    } on DioException catch (e) {
+      _rethrowTyped(e);
+    }
+  }
+
+  /// Sends a DELETE request to [path] and unwraps errors.
+  Future<Response<T>> delete<T>(
+    String path, {
+    dynamic data,
+    Options? options,
+  }) async {
+    try {
+      return await dio.delete<T>(path, data: data, options: options);
+    } on DioException catch (e) {
+      _rethrowTyped(e);
+    }
+  }
+
+  /// Extracts the typed exception stored in [DioException.error] by the
+  /// [_ErrorInterceptor] and rethrows it.  Falls back to rethrowing the
+  /// original [DioException] when no inner error is present.
+  Never _rethrowTyped(DioException e) {
+    final inner = e.error;
+    if (inner is Exception) throw inner;
+    throw e;
+  }
 }
 
 /// Interceptor to automatically inject JWT access tokens and run transparent token refreshes.
@@ -36,11 +112,21 @@ class _AuthInterceptor extends QueuedInterceptor {
       return handler.next(options);
     }
 
-    final tokenStorage = _ref.read(tokenStorageServiceProvider);
-    final accessToken = await tokenStorage.getAccessToken();
+    // Wrapped in try-catch: if token read fails for any reason (e.g.
+    // OperationError on emulators), we still call handler.next() so the
+    // Dio request doesn't hang forever. The request proceeds without
+    // an Authorization header — the server will return 401 which is
+    // handled normally by the error interceptor / refresh flow.
+    try {
+      final tokenStorage = _ref.read(tokenStorageServiceProvider);
+      final accessToken = await tokenStorage.getAccessToken();
 
-    if (accessToken != null) {
-      options.headers['Authorization'] = 'Bearer $accessToken';
+      if (accessToken != null) {
+        options.headers['Authorization'] = 'Bearer $accessToken';
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('Warning: Failed to read access token in interceptor: $e');
     }
 
     return handler.next(options);
@@ -54,42 +140,49 @@ class _AuthInterceptor extends QueuedInterceptor {
     if (response != null &&
         response.statusCode == 401 &&
         err.requestOptions.path != ApiEndpoints.refresh) {
-      final tokenStorage = _ref.read(tokenStorageServiceProvider);
-      final refreshToken = await tokenStorage.getRefreshToken();
+      try {
+        final tokenStorage = _ref.read(tokenStorageServiceProvider);
+        final refreshToken = await tokenStorage.getRefreshToken();
 
-      if (refreshToken != null) {
-        try {
-          // Changed: Removed Options header containing authorization bearer to prevent API token mismatch errors on FastAPI refresh
-          final refreshResponse = await _refreshDio.post<dynamic>(
-            ApiEndpoints.refresh,
-            data: {'refresh_token': refreshToken},
-          );
-
-          if (refreshResponse.statusCode == 200 || refreshResponse.statusCode == 201) {
-            final data = refreshResponse.data as Map<String, dynamic>;
-            final newAccessToken = data['access_token'] as String;
-            final newRefreshToken = data['refresh_token'] as String? ?? refreshToken;
-
-            await tokenStorage.saveTokens(
-              accessToken: newAccessToken,
-              refreshToken: newRefreshToken,
+        if (refreshToken != null) {
+          try {
+            // Changed: Removed Options header containing authorization bearer to prevent API token mismatch errors on FastAPI refresh
+            final refreshResponse = await _refreshDio.post<dynamic>(
+              ApiEndpoints.refresh,
+              data: {'refresh_token': refreshToken},
             );
 
-            // Re-attempt the failed original request with the fresh token
-            final options = err.requestOptions;
-            options.headers['Authorization'] = 'Bearer $newAccessToken';
+            if (refreshResponse.statusCode == 200 || refreshResponse.statusCode == 201) {
+              final data = refreshResponse.data as Map<String, dynamic>;
+              final newAccessToken = data['access_token'] as String;
+              final newRefreshToken = data['refresh_token'] as String? ?? refreshToken;
 
-            final dio = _ref.read(_rawDioProvider);
-            final retryResponse = await dio.fetch<dynamic>(options);
-            return handler.resolve(retryResponse);
+              await tokenStorage.saveTokens(
+                accessToken: newAccessToken,
+                refreshToken: newRefreshToken,
+              );
+
+              // Re-attempt the failed original request with the fresh token
+              final options = err.requestOptions;
+              options.headers['Authorization'] = 'Bearer $newAccessToken';
+
+              final dio = _ref.read(_rawDioProvider);
+              final retryResponse = await dio.fetch<dynamic>(options);
+              return handler.resolve(retryResponse);
+            }
+          } catch (e) {
+            // Token refresh failed, purge secure credentials and force logout re-evaluation
+            await tokenStorage.clearTokens();
+            _ref.invalidate(authProvider);
           }
-        } catch (e) {
-          // Token refresh failed, purge secure credentials and force logout re-evaluation
+        } else {
           await tokenStorage.clearTokens();
           _ref.invalidate(authProvider);
         }
-      } else {
-        await tokenStorage.clearTokens();
+      } catch (e) {
+        // Token storage itself is broken — force logout.
+        // ignore: avoid_print
+        print('Warning: Token storage error during 401 handling: $e');
         _ref.invalidate(authProvider);
       }
     }
@@ -99,6 +192,10 @@ class _AuthInterceptor extends QueuedInterceptor {
 }
 
 /// Interceptor to map network and backend status codes to structured exceptions.
+///
+/// Stores typed exceptions (e.g. [UnauthorizedException], [ForbiddenException])
+/// inside [DioException.error] via [handler.next].  The [DioClient] wrapper
+/// methods then unwrap these so callers receive the raw typed exception.
 class _ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {

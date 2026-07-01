@@ -1,4 +1,3 @@
-import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/core/constants/app_constants.dart';
 import 'package:splito_flutter/core/network/dio_client.dart';
@@ -35,18 +34,18 @@ abstract interface class IAuthRemoteDatasource {
   });
 }
 
-/// Remote datasource implementation using [Dio].
+/// Remote datasource implementation using [DioClient].
 class AuthRemoteDatasource implements IAuthRemoteDatasource {
-  final Dio _dio;
+  final DioClient _client;
 
-  const AuthRemoteDatasource(this._dio);
+  const AuthRemoteDatasource(this._client);
 
   @override
   Future<TokenResponseModel> login({
     required String email,
     required String password,
   }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
+    final response = await _client.post<Map<String, dynamic>>(
       ApiEndpoints.login,
       data: {
         'email': email,
@@ -62,7 +61,7 @@ class AuthRemoteDatasource implements IAuthRemoteDatasource {
     required String email,
     required String password,
   }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
+    final response = await _client.post<Map<String, dynamic>>(
       ApiEndpoints.register,
       data: {
         'name': name,
@@ -77,7 +76,7 @@ class AuthRemoteDatasource implements IAuthRemoteDatasource {
   Future<TokenResponseModel> refresh({
     required String refreshToken,
   }) async {
-    final response = await _dio.post<Map<String, dynamic>>(
+    final response = await _client.post<Map<String, dynamic>>(
       ApiEndpoints.refresh,
       data: {
         'refresh_token': refreshToken,
@@ -88,7 +87,7 @@ class AuthRemoteDatasource implements IAuthRemoteDatasource {
 
   @override
   Future<UserModel> getMe() async {
-    final response = await _dio.get<Map<String, dynamic>>(
+    final response = await _client.get<Map<String, dynamic>>(
       ApiEndpoints.usersMe,
     );
     return UserModel.fromJson(response.data!);
@@ -103,7 +102,7 @@ class AuthRemoteDatasource implements IAuthRemoteDatasource {
     if (name != null) data['name'] = name;
     if (preferredCurrency != null) data['preferred_currency'] = preferredCurrency;
 
-    final response = await _dio.patch<Map<String, dynamic>>(
+    final response = await _client.patch<Map<String, dynamic>>(
       ApiEndpoints.usersMe,
       data: data,
     );
@@ -114,5 +113,5 @@ class AuthRemoteDatasource implements IAuthRemoteDatasource {
 /// Provider exposing [IAuthRemoteDatasource].
 final authRemoteDatasourceProvider = Provider<IAuthRemoteDatasource>((ref) {
   final dioClient = ref.watch(dioClientProvider);
-  return AuthRemoteDatasource(dioClient.dio);
+  return AuthRemoteDatasource(dioClient);
 });

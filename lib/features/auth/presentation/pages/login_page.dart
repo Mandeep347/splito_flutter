@@ -30,12 +30,20 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     super.dispose();
   }
 
-  void _submit() {
+  // Changed: async so the unawaited rethrow from login() does not
+  // leak into the Dart error zone as RethrownDartError.
+  Future<void> _submit() async {
     if (_formKey.currentState?.validate() ?? false) {
-      ref.read(authNotifierProvider.notifier).login(
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+      try {
+        await ref.read(authNotifierProvider.notifier).login(
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            );
+      } catch (_) {
+        // Error is already handled via ref.listen on authNotifierProvider.
+        // This catch prevents the rethrow from surfacing as an
+        // unhandled future in the Dart error zone (RethrownDartError).
+      }
     }
   }
 

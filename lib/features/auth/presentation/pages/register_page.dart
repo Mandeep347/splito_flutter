@@ -36,13 +36,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.dispose();
   }
 
-  void _submit() {
+  // Changed: async so the rethrow from register() does not leak
+  // into the Dart error zone as RethrownDartError.
+  Future<void> _submit() async {
     if (_formKey.currentState?.validate() ?? false) {
-      ref.read(authNotifierProvider.notifier).register(
-            name: _nameController.text.trim(),
-            email: _emailController.text.trim(),
-            password: _passwordController.text,
-          );
+      try {
+        await ref.read(authNotifierProvider.notifier).register(
+              name: _nameController.text.trim(),
+              email: _emailController.text.trim(),
+              password: _passwordController.text,
+            );
+      } catch (_) {
+        // Error is already handled via ref.listen on authNotifierProvider.
+      }
     }
   }
 

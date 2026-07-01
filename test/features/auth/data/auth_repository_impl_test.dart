@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:splito_flutter/core/errors/exceptions.dart';
-import 'package:splito_flutter/core/errors/failures.dart';
 import 'package:splito_flutter/core/storage/token_storage_service.dart';
 import 'package:splito_flutter/features/auth/data/datasources/auth_local_datasource.dart';
 import 'package:splito_flutter/features/auth/data/datasources/auth_remote_datasource.dart';

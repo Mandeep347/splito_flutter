@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/core/errors/failures.dart';
+import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
 import 'package:splito_flutter/features/groups/data/repositories/group_repository_impl.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group_member.dart';
@@ -65,6 +66,13 @@ final removeMemberUseCaseProvider = Provider<RemoveMemberUseCase>((ref) {
 class MyGroupsNotifier extends AsyncNotifier<List<Group>> {
   @override
   FutureOr<List<Group>> build() async {
+    // Watch auth state so this provider automatically rebuilds when the user
+    // logs in or out.  Without this, StatefulShellRoute.indexedStack pre-builds
+    // the groups branch before authentication, the API returns 403, and the
+    // error state persists until an explicit invalidation (e.g. creating a group).
+    final isAuthenticated = ref.watch(authStateProvider);
+    if (!isAuthenticated) return [];
+
     final useCase = ref.watch(getMyGroupsUseCaseProvider);
     return useCase();
   }
