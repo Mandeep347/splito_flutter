@@ -5,7 +5,8 @@ import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 import 'package:splito_flutter/core/constants/app_constants.dart';
 import 'package:splito_flutter/core/errors/exceptions.dart';
 import 'package:splito_flutter/core/storage/token_storage_service.dart';
-import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
+// Changed: Replace auth_provider import with session_invalidator to avoid inverted dependencies
+import 'package:splito_flutter/core/network/session_invalidator.dart';
 
 /// Wrapped network client providing REST API operations with automatic
 /// error unwrapping.
@@ -135,58 +136,58 @@ class _AuthInterceptor extends QueuedInterceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final response = err.response;
-    
-    // Trigger token refresh sequence on 401 Unauthorized errors
     if (response != null &&
         response.statusCode == 401 &&
         err.requestOptions.path != ApiEndpoints.refresh) {
       try {
         final tokenStorage = _ref.read(tokenStorageServiceProvider);
         final refreshToken = await tokenStorage.getRefreshToken();
-
         if (refreshToken != null) {
           try {
-            // Changed: Removed Options header containing authorization bearer to prevent API token mismatch errors on FastAPI refresh
             final refreshResponse = await _refreshDio.post<dynamic>(
               ApiEndpoints.refresh,
               data: {'refresh_token': refreshToken},
             );
-
-            if (refreshResponse.statusCode == 200 || refreshResponse.statusCode == 201) {
+            if (refreshResponse.statusCode == 200 ||
+                refreshResponse.statusCode == 201) {
               final data = refreshResponse.data as Map<String, dynamic>;
               final newAccessToken = data['access_token'] as String;
-              final newRefreshToken = data['refresh_token'] as String? ?? refreshToken;
-
+              final newRefreshToken =
+                  data['refresh_token'] as String? ?? refreshToken;
               await tokenStorage.saveTokens(
                 accessToken: newAccessToken,
                 refreshToken: newRefreshToken,
               );
-
-              // Re-attempt the failed original request with the fresh token
               final options = err.requestOptions;
               options.headers['Authorization'] = 'Bearer $newAccessToken';
-
               final dio = _ref.read(_rawDioProvider);
               final retryResponse = await dio.fetch<dynamic>(options);
               return handler.resolve(retryResponse);
             }
           } catch (e) {
-            // Token refresh failed, purge secure credentials and force logout re-evaluation
+            // Token refresh failed — expire the session.
             await tokenStorage.clearTokens();
-            _ref.invalidate(authProvider);
+            // Changed: replaced _ref.invalidate(authProvider) with
+            // sessionExpiredCallbackProvider to remove the dependency
+            // from core/network on features/auth/presentation.
+            _ref.read(sessionExpiredCallbackProvider)?.call();
           }
         } else {
           await tokenStorage.clearTokens();
-          _ref.invalidate(authProvider);
+          // Changed: replaced _ref.invalidate(authProvider) with
+          // sessionExpiredCallbackProvider to remove the dependency
+          // from core/network on features/auth/presentation.
+          _ref.read(sessionExpiredCallbackProvider)?.call();
         }
       } catch (e) {
-        // Token storage itself is broken — force logout.
         // ignore: avoid_print
         print('Warning: Token storage error during 401 handling: $e');
-        _ref.invalidate(authProvider);
+        // Changed: replaced _ref.invalidate(authProvider) with
+        // sessionExpiredCallbackProvider to remove the dependency
+        // from core/network on features/auth/presentation.
+        _ref.read(sessionExpiredCallbackProvider)?.call();
       }
     }
-
     return handler.next(err);
   }
 }
@@ -240,6 +241,9 @@ class _ErrorInterceptor extends Interceptor {
 
 /// Internal provider exposing raw pre-configured Dio instance.
 final _rawDioProvider = Provider<Dio>((ref) {
+  // Dio must persist for the app lifetime — requests in-flight
+  // must not be orphaned by provider disposal during navigation.
+  ref.keepAlive();
   final dio = Dio(BaseOptions(
     baseUrl: AppConstants.baseUrl,
     connectTimeout: Duration(milliseconds: AppConstants.connectTimeoutMs),

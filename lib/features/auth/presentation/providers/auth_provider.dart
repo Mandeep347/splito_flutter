@@ -1,5 +1,7 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/core/errors/failures.dart';
+import 'package:splito_flutter/core/network/session_invalidator.dart';
 import 'package:splito_flutter/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:splito_flutter/features/auth/domain/entities/logged_in_user.dart';
 import 'package:splito_flutter/features/auth/domain/usecases/get_me_usecase.dart';
@@ -62,6 +64,27 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     final repository = ref.watch(authRepositoryProvider);
     final getMe = ref.watch(getMeUseCaseProvider);
 
+    // Register the session-expired callback so the network layer
+    // can trigger logout without importing auth_provider directly.
+    // Uses a post-frame callback to avoid modifying another
+    // provider's state during build, which Riverpod disallows.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(sessionExpiredCallbackProvider.notifier).state = () {
+        ref.invalidateSelf();
+      };
+    });
+
+    // Clean up the callback when this notifier is disposed
+    // (e.g. on logout when invalidateSelf() is called).
+    ref.onDispose(() {
+      // Only clear if we are still the registered callback.
+      // Use a try-catch because the container may already be
+      // disposed during hot restart.
+      try {
+        ref.read(sessionExpiredCallbackProvider.notifier).state = null;
+      } catch (_) {}
+    });
+
     final hasToken = await repository.isAuthenticated();
     if (!hasToken) {
       return const AuthStateUnauthenticated();
@@ -86,11 +109,11 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     try {
       final loginUseCase = ref.read(loginUseCaseProvider);
       await loginUseCase(email: email, password: password);
-
-      final getMeUseCase = ref.read(getMeUseCaseProvider);
-      final user = await getMeUseCase();
-
-      state = AsyncValue.data(AuthStateAuthenticated(user: user));
+      // Tokens are saved. Re-run build() which calls getMe()
+      // and resolves to AuthStateAuthenticated or falls back
+      // to AuthStateUnauthenticated on its own — no duplicate
+      // getMe call here that could falsely report login failure.
+      ref.invalidateSelf();
     } on AuthFailure {
       state = const AsyncValue.data(AuthStateUnauthenticated());
     } catch (e, stack) {

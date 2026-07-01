@@ -92,9 +92,9 @@ final myGroupsProvider =
 /// Notifier that manages fetching detailed records for a single group by ID.
 class GroupDetailNotifier extends FamilyAsyncNotifier<Group, String> {
   @override
-  FutureOr<Group> build(String arg) {
+  FutureOr<Group> build(String groupId) {
     final useCase = ref.watch(getGroupByIdUseCaseProvider);
-    return useCase(groupId: arg);
+    return useCase(groupId: groupId);
   }
 
   /// Invalidates this specific notifier.
@@ -204,9 +204,9 @@ final archiveGroupProvider =
 /// Notifier that manages fetching and listing the group members.
 class GroupMembersNotifier extends FamilyAsyncNotifier<List<GroupMember>, String> {
   @override
-  FutureOr<List<GroupMember>> build(String arg) {
+  FutureOr<List<GroupMember>> build(String groupId) {
     final useCase = ref.watch(getMembersUseCaseProvider);
-    return useCase(groupId: arg);
+    return useCase(groupId: groupId);
   }
 }
 
