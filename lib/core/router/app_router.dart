@@ -9,6 +9,10 @@ import 'package:splito_flutter/features/groups/presentation/pages/group_details_
 import 'package:splito_flutter/features/groups/presentation/pages/group_list_page.dart';
 import 'package:splito_flutter/features/groups/presentation/pages/group_members_page.dart';
 import 'package:splito_flutter/features/profile/presentation/pages/profile_page.dart';
+import 'package:splito_flutter/features/groups/domain/entities/group_member.dart';
+import 'package:splito_flutter/features/expenses/presentation/pages/create_expense_page.dart';
+import 'package:splito_flutter/features/expenses/presentation/pages/expense_detail_page.dart';
+import 'package:splito_flutter/features/expenses/presentation/pages/expense_list_page.dart';
 
 /// Global navigator keys for context access.
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -105,6 +109,43 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                       final groupId = state.pathParameters['groupId'] ?? '';
                       return GroupDetailsPage(groupId: groupId);
                     },
+                    routes: [
+                      GoRoute(
+                        name: AppRoutes.createExpenseName,
+                        path: AppRoutes.createExpensePath,
+                        builder: (context, state) {
+                          final groupId = state.pathParameters['groupId'] ?? '';
+                          final extra = state.extra as Map<String, dynamic>?;
+                          final groupName = extra?['groupName'] as String? ?? '';
+                          final currency = extra?['currency'] as String? ?? 'INR';
+                          final members = extra?['members'] as List<GroupMember>? ?? [];
+                          return CreateExpensePage(
+                            groupId: groupId,
+                            groupName: groupName,
+                            currency: currency,
+                            members: members,
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        name: AppRoutes.expenseDetailName,
+                        path: AppRoutes.expenseDetailPath,
+                        builder: (context, state) {
+                          final expenseId = state.pathParameters['expenseId'] ?? '';
+                          return ExpenseDetailPage(expenseId: expenseId);
+                        },
+                      ),
+                      GoRoute(
+                        name: AppRoutes.expenseListName,
+                        path: AppRoutes.expenseListPath,
+                        builder: (context, state) {
+                          final groupId = state.pathParameters['groupId'] ?? '';
+                          final extra = state.extra as Map<String, dynamic>?;
+                          final groupName = extra?['groupName'] as String? ?? '';
+                          return ExpenseListPage(groupId: groupId, groupName: groupName);
+                        },
+                      ),
+                    ],
                   ),
                   GoRoute(
                     name: AppRoutes.groupMembersName,

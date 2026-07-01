@@ -71,6 +71,7 @@ class GroupDetailsPage extends ConsumerWidget {
     final theme = Theme.of(context);
     final ext = theme.extension<AppThemeExtension>()!;
     final detailAsync = ref.watch(groupDetailProvider(groupId));
+    final group = detailAsync.valueOrNull;
 
     // Listen to archive group mutation
     ref.listen<AsyncValue<void>>(archiveGroupProvider, (previous, next) {
@@ -235,8 +236,10 @@ class GroupDetailsPage extends ConsumerWidget {
                             icon: Icons.receipt_long_outlined,
                             label: 'Expenses',
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Coming in Phase 4')),
+                              context.goNamed(
+                                AppRoutes.expenseListName,
+                                pathParameters: {'groupId': group.id},
+                                extra: {'groupName': group.name},
                               );
                             },
                           ),
@@ -310,15 +313,21 @@ class GroupDetailsPage extends ConsumerWidget {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
-        label: const Text('Add Expense'),
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Coming in Phase 4')),
-          );
-        },
-      ),
+      floatingActionButton: group == null
+          ? null
+          : FloatingActionButton.extended(
+              icon: const Icon(Icons.add),
+              label: const Text('Add Expense'),
+              onPressed: () => context.goNamed(
+                AppRoutes.createExpenseName,
+                pathParameters: {'groupId': group.id},
+                extra: {
+                  'groupName': group.name,
+                  'currency': group.defaultCurrency,
+                  'members': group.members,
+                },
+              ),
+            ),
     );
   }
 }

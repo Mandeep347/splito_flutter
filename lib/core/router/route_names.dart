@@ -14,8 +14,14 @@ abstract class AppRoutes {
   static const String groupDetailsName = 'groupDetails';
   static const String groupDetailsPath = 'details/:groupId'; // Nested sub-route
 
-  static const String addExpenseName = 'addExpense';
-  static const String addExpensePath = 'details/:groupId/expenses/new';
+  static const String createExpenseName = 'createExpense';
+  static const String createExpensePath = 'expenses/new';
+
+  static const String expenseListName = 'expenseList';
+  static const String expenseListPath = 'expenses';
+
+  static const String expenseDetailName = 'expenseDetail';
+  static const String expenseDetailPath = 'expenses/:expenseId';
 
   static const String groupMembersName = 'groupMembers';
   static const String groupMembersPath = 'details/:groupId/members';
