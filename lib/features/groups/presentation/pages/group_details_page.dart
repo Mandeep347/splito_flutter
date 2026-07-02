@@ -13,6 +13,10 @@ import 'package:splito_flutter/shared/widgets/async_value_widget.dart';
 import 'package:splito_flutter/shared/widgets/confirmation_dialog.dart';
 import 'package:splito_flutter/shared/widgets/info_row.dart';
 import 'package:splito_flutter/shared/widgets/member_avatar.dart';
+import 'package:splito_flutter/core/theme/financial_colors.dart';
+import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
+import 'package:splito_flutter/features/balances/domain/entities/group_balances.dart';
+import 'package:splito_flutter/shared/widgets/balance_row.dart';
 
 /// Screen displaying the details of a single group.
 class GroupDetailsPage extends ConsumerWidget {
@@ -226,6 +230,93 @@ class GroupDetailsPage extends ConsumerWidget {
                       ),
                     ),
 
+                    // Balances Preview Card
+                    Card(
+                      elevation: 0,
+                      margin: EdgeInsets.only(bottom: ext.spaceLG),
+                      child: Padding(
+                        padding: EdgeInsets.all(ext.spaceMD),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Balances',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: ext.spaceSM),
+                            AsyncValueWidget<GroupBalances>(
+                              value: ref.watch(groupBalancesProvider(groupId)),
+                              loading: () => const SizedBox(
+                                height: 48,
+                                child: Center(
+                                  child: SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              error: (_, __) => const SizedBox.shrink(),
+                              data: (groupBalances) {
+                                if (groupBalances.isAllSettled) {
+                                  return Row(
+                                    children: [
+                                      Icon(
+                                        Icons.check_circle_outline_rounded,
+                                        color: theme.colorScheme.owedColor,
+                                        size: 20,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'All settled up!',
+                                        style: theme.textTheme.bodyMedium?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }
+
+                                final balances = groupBalances.balances;
+                                final shown = balances.take(3).toList();
+
+                                return Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    ...shown.map((b) => BalanceRow(
+                                          balance: b,
+                                          showSettleButton: false,
+                                        )),
+                                    if (balances.length > 3)
+                                      Align(
+                                        alignment: Alignment.centerRight,
+                                        child: TextButton(
+                                          onPressed: () {
+                                            context.goNamed(
+                                              AppRoutes.groupBalancesName,
+                                              pathParameters: {'groupId': groupId},
+                                              extra: {
+                                                'groupName': group.name,
+                                                'currency': group.defaultCurrency,
+                                              },
+                                            );
+                                          },
+                                          child: const Text('See all'),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
                     // Quick Actions
                     Padding(
                       padding: EdgeInsets.only(bottom: ext.spaceLG),
@@ -248,8 +339,13 @@ class GroupDetailsPage extends ConsumerWidget {
                             icon: Icons.account_balance_wallet_outlined,
                             label: 'Balances',
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Coming in Phase 5')),
+                              context.goNamed(
+                                AppRoutes.groupBalancesName,
+                                pathParameters: {'groupId': group.id},
+                                extra: {
+                                  'groupName': group.name,
+                                  'currency': group.defaultCurrency,
+                                },
                               );
                             },
                           ),
@@ -258,8 +354,14 @@ class GroupDetailsPage extends ConsumerWidget {
                             icon: Icons.swap_horiz_rounded,
                             label: 'Settle Up',
                             onTap: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Coming in Phase 5')),
+                              context.goNamed(
+                                AppRoutes.createSettlementName,
+                                pathParameters: {'groupId': group.id},
+                                extra: {
+                                  'groupName': group.name,
+                                  'currency': group.defaultCurrency,
+                                  'members': group.members,
+                                },
                               );
                             },
                           ),

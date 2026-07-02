@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:splito_flutter/core/errors/failures.dart';
 import 'package:splito_flutter/core/router/route_names.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
+import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
 import 'package:splito_flutter/features/auth/presentation/widgets/auth_form_wrapper.dart';
 import 'package:splito_flutter/shared/widgets/app_text_field.dart';
 import 'package:splito_flutter/shared/widgets/loading_overlay.dart';
@@ -53,8 +54,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     ref.listen<AsyncValue<AuthState>>(
       authNotifierProvider,
       (previous, next) {
-        // Navigate on successful authentication
         if (next.valueOrNull is AuthStateAuthenticated) {
+          // Pre-warm overall balances so the dashboard loads fast
+          ref.read(myOverallBalancesProvider.notifier).refresh();
           context.goNamed(AppRoutes.groupsName);
           return;
         }

@@ -22,6 +22,13 @@ abstract class AppRoutes {
 
   static const String expenseDetailName = 'expenseDetail';
   static const String expenseDetailPath = 'expenses/:expenseId';
+ 
+  static const String groupBalancesPath = 'balances';
+  static const String groupBalancesName = 'groupBalances';
+  static const String settlementListPath = 'settlements';
+  static const String settlementListName = 'settlementList';
+  static const String createSettlementPath = 'settlements/new';
+  static const String createSettlementName = 'createSettlement';
 
   static const String groupMembersName = 'groupMembers';
   static const String groupMembersPath = 'details/:groupId/members';

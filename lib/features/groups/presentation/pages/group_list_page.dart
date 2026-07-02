@@ -7,6 +7,8 @@ import 'package:splito_flutter/features/groups/presentation/widgets/create_group
 import 'package:splito_flutter/features/groups/presentation/widgets/group_card.dart';
 import 'package:splito_flutter/shared/widgets/async_value_widget.dart';
 import 'package:splito_flutter/shared/widgets/empty_state_widget.dart';
+import 'package:splito_flutter/shared/widgets/overall_balance_card.dart';
+import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
 
 /// Screen listing all groups the user belongs to.
 class GroupListPage extends ConsumerWidget {
@@ -62,17 +64,31 @@ class GroupListPage extends ConsumerWidget {
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(myGroupsProvider);
+              ref.invalidate(myOverallBalancesProvider);
               try {
                 await ref.read(myGroupsProvider.future);
+                await ref.read(myOverallBalancesProvider.future);
               } catch (_) {}
             },
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              itemCount: groups.length,
-              itemBuilder: (context, index) {
-                final group = groups[index];
-                return GroupCard(group: group);
-              },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
+                const SliverToBoxAdapter(
+                  child: OverallBalanceCard(),
+                ),
+                SliverPadding(
+                  padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final group = groups[index];
+                        return GroupCard(group: group);
+                      },
+                      childCount: groups.length,
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         },

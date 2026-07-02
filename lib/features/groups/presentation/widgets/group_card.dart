@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:splito_flutter/core/router/route_names.dart';
 import 'package:splito_flutter/core/theme/theme_extensions.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group.dart';
+import 'package:splito_flutter/core/theme/financial_colors.dart';
+import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
 
 /// Card displaying metadata for a single group in lists.
 class GroupCard extends ConsumerWidget {
@@ -74,6 +76,40 @@ class GroupCard extends ConsumerWidget {
                         color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
+                    SizedBox(height: ext.spaceXXS),
+                    // N+1 balance calls from GroupCard are intentional for Phase 5
+                    // to display net outstanding counts inside the list item.
+                    ref.watch(groupBalancesProvider(group.id)).when(
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                          data: (balances) {
+                            if (balances.isAllSettled) {
+                              return Row(
+                                children: [
+                                  Icon(
+                                    Icons.check_circle_outline,
+                                    size: 12,
+                                    color: theme.colorScheme.owedColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'All settled',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: theme.colorScheme.owedColor,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }
+                            final count = balances.balances.length;
+                            return Text(
+                              '$count unsettled balance${count == 1 ? '' : 's'}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.oweColor,
+                              ),
+                            );
+                          },
+                        ),
                   ],
                 ),
               ),

@@ -13,6 +13,9 @@ import 'package:splito_flutter/features/groups/domain/entities/group_member.dart
 import 'package:splito_flutter/features/expenses/presentation/pages/create_expense_page.dart';
 import 'package:splito_flutter/features/expenses/presentation/pages/expense_detail_page.dart';
 import 'package:splito_flutter/features/expenses/presentation/pages/expense_list_page.dart';
+import 'package:splito_flutter/features/balances/presentation/pages/group_balances_page.dart';
+import 'package:splito_flutter/features/settlements/presentation/pages/settlement_list_page.dart';
+import 'package:splito_flutter/features/settlements/presentation/pages/create_settlement_page.dart';
 
 /// Global navigator keys for context access.
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -143,6 +146,55 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                           final extra = state.extra as Map<String, dynamic>?;
                           final groupName = extra?['groupName'] as String? ?? '';
                           return ExpenseListPage(groupId: groupId, groupName: groupName);
+                        },
+                      ),
+                      GoRoute(
+                        name: AppRoutes.groupBalancesName,
+                        path: AppRoutes.groupBalancesPath,
+                        builder: (context, state) {
+                          final groupId = state.pathParameters['groupId'] ?? '';
+                          final extra = state.extra as Map<String, dynamic>?;
+                          final groupName = extra?['groupName'] as String? ?? '';
+                          final currency = extra?['currency'] as String? ?? 'INR';
+                          return GroupBalancesPage(
+                            groupId: groupId,
+                            groupName: groupName,
+                            currency: currency,
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        name: AppRoutes.settlementListName,
+                        path: AppRoutes.settlementListPath,
+                        builder: (context, state) {
+                          final groupId = state.pathParameters['groupId'] ?? '';
+                          final extra = state.extra as Map<String, dynamic>?;
+                          final groupName = extra?['groupName'] as String? ?? '';
+                          return SettlementListPage(
+                            groupId: groupId,
+                            groupName: groupName,
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        name: AppRoutes.createSettlementName,
+                        path: AppRoutes.createSettlementPath,
+                        builder: (context, state) {
+                          final groupId = state.pathParameters['groupId'] ?? '';
+                          final extra = state.extra as Map<String, dynamic>?;
+                          final groupName = extra?['groupName'] as String? ?? '';
+                          final currency = extra?['currency'] as String? ?? 'INR';
+                          final members = extra?['members'] as List<GroupMember>? ?? [];
+                          final prefilledFromUserId = extra?['prefilledFromUserId'] as String?;
+                          final prefilledToUserId = extra?['prefilledToUserId'] as String?;
+                          return CreateSettlementPage(
+                            groupId: groupId,
+                            groupName: groupName,
+                            currency: currency,
+                            members: members,
+                            prefilledFromUserId: prefilledFromUserId,
+                            prefilledToUserId: prefilledToUserId,
+                          );
                         },
                       ),
                     ],
