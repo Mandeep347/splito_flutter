@@ -1,19 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:splito_flutter/core/errors/failures.dart';
+import 'package:splito_flutter/core/theme/theme_extensions.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
-import 'package:splito_flutter/features/profile/presentation/providers/profile_provider.dart';
-import 'package:splito_flutter/shared/widgets/app_text_field.dart';
-import 'package:splito_flutter/shared/widgets/primary_button.dart';
+import 'package:splito_flutter/features/settings/presentation/providers/settings_providers.dart';
+import 'package:splito_flutter/shared/widgets/confirmation_dialog.dart';
+import 'package:splito_flutter/shared/widgets/info_row.dart';
 import 'package:splito_flutter/shared/widgets/notification_bell.dart';
+import 'package:go_router/go_router.dart';
+import 'package:splito_flutter/core/router/route_names.dart';
+import '../widgets/edit_profile_sheet.dart';
 
-/// Full screen view displaying user profile details and sign-out actions.
+/// Screen displaying user profile dashboard, local app preferences, and session controls.
 class ProfilePage extends ConsumerWidget {
+  /// Creates a const [ProfilePage] instance.
   const ProfilePage({super.key});
+
+  static const List<String> _currencies = [
+    'INR',
+    'USD',
+    'EUR',
+    'GBP',
+    'SGD',
+    'AED',
+    'JPY',
+    'CAD',
+  ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final ext = theme.extension<AppThemeExtension>()!;
     final user = ref.watch(currentUserProvider);
+    final settingsState = ref.watch(settingsProvider);
 
     if (user == null) {
       return const Scaffold(
@@ -26,214 +44,296 @@ class ProfilePage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
-        actions: const [
-          NotificationBell(),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.goNamed(AppRoutes.settingsName),
+          ),
+          const NotificationBell(),
         ],
       ),
-      body: SingleChildScrollView(
+      body: ListView(
         padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: CircleAvatar(
-                radius: 48,
-                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                child: Text(
-                  user.initials,
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimaryContainer,
+        children: [
+          // Section 1: Avatar + Name Header
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: Text(
+                    user.initials,
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                Text(
+                  user.name,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  user.email,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  onPressed: () => EditProfileSheet.show(context, ref, user),
+                  icon: const Icon(Icons.edit_outlined, size: 18),
+                  label: const Text('Edit Profile'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Section 2: Account Info Card
+          Card(
+            elevation: 0,
+            color: theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              side: BorderSide(
+                color: theme.colorScheme.outlineVariant,
               ),
             ),
-            const SizedBox(height: 24),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            child: Padding(
+              padding: EdgeInsets.all(ext.spaceMD),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  InfoRow(
+                    icon: Icons.currency_rupee_rounded,
+                    label: 'Preferred Currency',
+                    value: user.preferredCurrency,
+                  ),
+                  Divider(height: ext.spaceLG),
+                  InfoRow(
+                    icon: Icons.verified_user_outlined,
+                    label: 'Account Status',
+                    value: 'Active',
+                    valueColor: Colors.green.shade600,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // Section 3: App Settings Card
+          Text(
+            'Preferences',
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            elevation: 0,
+            color: theme.colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              side: BorderSide(
+                color: theme.colorScheme.outlineVariant,
+              ),
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(ext.spaceMD),
+              child: settingsState.when(
+                loading: () => Column(
                   children: [
+                    _buildSkeleton(ext, theme),
+                    Divider(height: ext.spaceLG),
+                    _buildSkeleton(ext, theme),
+                    Divider(height: ext.spaceLG),
+                    _buildSkeleton(ext, theme),
+                    Divider(height: ext.spaceLG),
+                    _buildSkeleton(ext, theme),
+                  ],
+                ),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (settings) => Column(
+                  children: [
+                    // Theme Row
                     ListTile(
-                      leading: const Icon(Icons.person_outline),
-                      title: const Text('Name'),
-                      subtitle: Text(user.name),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Theme'),
+                      trailing: SegmentedButton<String>(
+                        showSelectedIcon: false,
+                        segments: const [
+                          ButtonSegment(
+                            value: 'system',
+                            label: Text('System'),
+                            icon: Icon(Icons.brightness_auto_outlined, size: 16),
+                          ),
+                          ButtonSegment(
+                            value: 'light',
+                            label: Text('Light'),
+                            icon: Icon(Icons.light_mode_outlined, size: 16),
+                          ),
+                          ButtonSegment(
+                            value: 'dark',
+                            label: Text('Dark'),
+                            icon: Icon(Icons.dark_mode_outlined, size: 16),
+                          ),
+                        ],
+                        selected: {settings.themeMode},
+                        onSelectionChanged: (selected) {
+                          ref.read(settingsProvider.notifier).updateThemeMode(selected.first);
+                        },
+                      ),
                     ),
-                    const Divider(),
-                    ListTile(
-                      leading: const Icon(Icons.email_outlined),
-                      title: const Text('Email'),
-                      subtitle: Text(user.email),
+                    Divider(height: ext.spaceLG),
+                    // Notifications
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Notifications'),
+                      subtitle: Text(
+                        'Expense and settlement alerts',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      value: settings.notificationsEnabled,
+                      onChanged: (v) {
+                        ref.read(settingsProvider.notifier).updateNotifications(v);
+                      },
                     ),
-                    const Divider(),
+                    Divider(height: ext.spaceLG),
+                    // Default Currency
                     ListTile(
-                      leading: const Icon(Icons.monetization_on_outlined),
-                      title: const Text('Preferred Currency'),
-                      subtitle: Text(user.preferredCurrency),
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Default Currency'),
+                      trailing: DropdownButton<String>(
+                        value: settings.defaultCurrency,
+                        underline: const SizedBox.shrink(),
+                        items: _currencies.map((c) {
+                          return DropdownMenuItem(
+                            value: c,
+                            child: Text(c),
+                          );
+                        }).toList(),
+                        onChanged: (v) {
+                          if (v != null) {
+                            ref.read(settingsProvider.notifier).updateDefaultCurrency(v);
+                          }
+                        },
+                      ),
+                    ),
+                    Divider(height: ext.spaceLG),
+                    // Compact Expense List
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Compact Expense List'),
+                      subtitle: Text(
+                        'Show more expenses on screen',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      value: settings.compactExpenseList,
+                      onChanged: (v) {
+                        ref.read(settingsProvider.notifier).updateCompactList(v);
+                      },
                     ),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 24),
-            PrimaryButton(
-              label: 'Edit Profile',
-              onPressed: () {
-                showModalBottomSheet<void>(
-                  context: context,
-                  isScrollControlled: true,
-                  builder: (context) {
-                    return _EditProfileBottomSheet(
-                      initialName: user.name,
-                      initialCurrency: user.preferredCurrency,
-                    );
-                  },
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            OutlinedButton(
-              onPressed: () {
-                ref.read(authNotifierProvider.notifier).logout();
-              },
-              child: const Text('Sign Out'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _EditProfileBottomSheet extends ConsumerStatefulWidget {
-  final String initialName;
-  final String initialCurrency;
-
-  const _EditProfileBottomSheet({
-    required this.initialName,
-    required this.initialCurrency,
-  });
-
-  @override
-  ConsumerState<_EditProfileBottomSheet> createState() =>
-      _EditProfileBottomSheetState();
-}
-
-class _EditProfileBottomSheetState extends ConsumerState<_EditProfileBottomSheet> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
-  late String _selectedCurrency;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.initialName);
-    _selectedCurrency = widget.initialCurrency;
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    if (_formKey.currentState?.validate() ?? false) {
-      ref.read(updateProfileNotifierProvider.notifier).updateProfile(
-            name: _nameController.text.trim(),
-            preferredCurrency: _selectedCurrency,
-          );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final updateState = ref.watch(updateProfileNotifierProvider);
-
-    ref.listen<AsyncValue<void>>(
-      updateProfileNotifierProvider,
-      (previous, next) {
-        if (next is AsyncData<void>) {
-          Navigator.of(context).pop();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully.')),
-          );
-        } else if (next is AsyncError) {
-          final error = next.error;
-          final message = error is Failure ? error.message : error.toString();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
-        }
-      },
-    );
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 24,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-      ),
-      child: Form(
-        key: _formKey,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                'Edit Profile',
-                style: Theme.of(context).textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              AppTextField(
-                controller: _nameController,
-                labelText: 'Full Name',
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Name is required';
-                  }
-                  if (value.length > 100) {
-                    return 'Name must be 100 characters or less';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'Preferred Currency',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: const ['INR', 'USD', 'EUR', 'GBP'].map((currency) {
-                  return ChoiceChip(
-                    label: Text(currency),
-                    selected: _selectedCurrency == currency,
-                    onSelected: (selected) {
-                      if (selected) {
-                        setState(() {
-                          _selectedCurrency = currency;
-                        });
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              PrimaryButton(
-                label: 'Save Changes',
-                isLoading: updateState.isLoading,
-                onPressed: _submit,
-              ),
-            ],
           ),
-        ),
+          const SizedBox(height: 24),
+
+          // Section 4: Danger Zone
+          Text(
+            'Danger Zone',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.error,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(
+            elevation: 0,
+            color: theme.colorScheme.errorContainer.withValues(alpha: 0.05),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+              side: BorderSide(
+                color: theme.colorScheme.error.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Column(
+              children: [
+                ListTile(
+                  title: Text(
+                    'Reset App Settings',
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onTap: () async {
+                    final confirm = await ConfirmationDialog.show(
+                      context,
+                      title: 'Reset Settings',
+                      message:
+                          'This will reset all preferences to defaults. Your account and data are not affected.',
+                      confirmLabel: 'Reset',
+                      isDestructive: true,
+                    );
+                    if (confirm == true && context.mounted) {
+                      final messenger = ScaffoldMessenger.of(context);
+                      await ref.read(settingsProvider.notifier).resetToDefaults();
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Settings reset to defaults')),
+                      );
+                    }
+                  },
+                ),
+                Divider(height: 1, color: theme.colorScheme.error.withValues(alpha: 0.1)),
+                ListTile(
+                  title: Text(
+                    'Sign Out',
+                    style: TextStyle(
+                      color: theme.colorScheme.error,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onTap: () async {
+                    final confirm = await ConfirmationDialog.show(
+                      context,
+                      title: 'Sign Out',
+                      message: 'You will need to sign in again to access your groups.',
+                      confirmLabel: 'Sign Out',
+                      isDestructive: true,
+                    );
+                    if (confirm == true) {
+                      await ref.read(authNotifierProvider.notifier).logout();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeleton(AppThemeExtension ext, ThemeData theme) {
+    return Container(
+      height: 48,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(8),
       ),
     );
   }

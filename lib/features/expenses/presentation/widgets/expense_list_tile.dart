@@ -11,10 +11,14 @@ class ExpenseListTile extends ConsumerWidget {
   /// The expense transaction detail data.
   final Expense expense;
 
+  /// Whether the tile should be displayed in a compact format.
+  final bool compact;
+
   /// Creates a const [ExpenseListTile] instance.
   const ExpenseListTile({
     super.key,
     required this.expense,
+    this.compact = false,
   });
 
   String _getRelativeDate(DateTime createdAt) {
@@ -39,7 +43,9 @@ class ExpenseListTile extends ConsumerWidget {
     final relativeDate = _getRelativeDate(expense.createdAt);
 
     Widget content = Card(
-      margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+      margin: compact
+          ? const EdgeInsets.symmetric(vertical: 2, horizontal: 12)
+          : const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
       elevation: 0,
       color: theme.colorScheme.surface,
       shape: RoundedRectangleBorder(
@@ -58,13 +64,13 @@ class ExpenseListTile extends ConsumerWidget {
           },
         ),
         child: Padding(
-          padding: const EdgeInsets.all(12.0),
+          padding: EdgeInsets.all(compact ? 10.0 : 14.0),
           child: Row(
             children: [
               // Left Icon Container
               Container(
-                width: 44,
-                height: 44,
+                width: compact ? 36 : 44,
+                height: compact ? 36 : 44,
                 decoration: BoxDecoration(
                   color: theme.colorScheme.primaryContainer.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(8),
@@ -72,6 +78,7 @@ class ExpenseListTile extends ConsumerWidget {
                 child: Icon(
                   Icons.receipt_long_outlined,
                   color: theme.colorScheme.onPrimaryContainer,
+                  size: compact ? 16 : 20,
                 ),
               ),
               const SizedBox(width: 12),
@@ -83,7 +90,7 @@ class ExpenseListTile extends ConsumerWidget {
                   children: [
                     Text(
                       expense.title,
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: (compact ? theme.textTheme.bodySmall : theme.textTheme.titleMedium)?.copyWith(
                         fontWeight: FontWeight.bold,
                         decoration: isReversed ? TextDecoration.lineThrough : null,
                         color: isReversed ? theme.colorScheme.onSurfaceVariant : null,
@@ -96,6 +103,7 @@ class ExpenseListTile extends ConsumerWidget {
                       '${expense.paidByName} · $relativeDate',
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
+                        fontSize: compact ? 11 : null,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -112,7 +120,7 @@ class ExpenseListTile extends ConsumerWidget {
                   AmountDisplay(
                     amount: expense.totalAmount,
                     currency: expense.currency,
-                    style: theme.textTheme.titleMedium?.copyWith(
+                    style: (compact ? theme.textTheme.bodyMedium : theme.textTheme.titleMedium)?.copyWith(
                       fontWeight: FontWeight.bold,
                       decoration: isReversed ? TextDecoration.lineThrough : null,
                     ),
@@ -120,21 +128,23 @@ class ExpenseListTile extends ConsumerWidget {
                         ? theme.colorScheme.onSurfaceVariant
                         : theme.colorScheme.primary,
                   ),
-                  const SizedBox(height: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      expense.splitType.displayLabel,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                        fontSize: 10,
+                  if (!compact) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        expense.splitType.displayLabel,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                          fontSize: 10,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],

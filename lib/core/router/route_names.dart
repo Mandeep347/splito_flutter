@@ -39,6 +39,9 @@ abstract class AppRoutes {
   static const String notificationsPath = '/notifications';
   static const String notificationsName = 'notifications';
 
+  static const String settingsPath = '/settings';
+  static const String settingsName = 'settings';
+
   // Profile Tab Routes (Nested inside StatefulShellRoute)
   static const String profileName = 'profile';
   static const String profilePath = '/profile';

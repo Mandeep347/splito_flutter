@@ -17,4 +17,5 @@ abstract class StorageKeys {
   static const String themeModeKey = 'settings_theme_mode';
   static const String localeLanguageKey = 'settings_locale_language';
   static const String selectedCurrencyKey = 'settings_selected_currency';
+  static const String settingsKey = 'app_settings';
 }

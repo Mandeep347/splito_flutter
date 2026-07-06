@@ -6,6 +6,7 @@ import 'app.dart';
 import 'core/constants/storage_keys.dart';
 import 'core/logger/app_logger.dart';
 import 'core/storage/hive_storage_service.dart';
+import 'features/settings/presentation/providers/settings_providers.dart';
 
 void main() async {
   // Ensure native bindings are bound before initializing asynchronous services
@@ -55,6 +56,16 @@ void main() async {
     await hiveStorage.openBox(StorageKeys.activityCacheBox);
     
     logger.info('Hive databases successfully mounted.');
+
+    // Pre-warm settings to avoid theme flash on startup
+    logger.info('Pre-warming settings configurations...');
+    try {
+      await providerContainer.read(settingsProvider.future);
+      logger.info('Settings pre-warmed successfully.');
+    } catch (_) {
+      // settings load failure is non-fatal — defaults apply
+      logger.warning('Failed to pre-warm settings. Using default configurations.');
+    }
   } catch (error, stack) {
     logger.error(
       'Pre-boot initialization failed',

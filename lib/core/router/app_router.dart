@@ -18,6 +18,7 @@ import 'package:splito_flutter/features/settlements/presentation/pages/settlemen
 import 'package:splito_flutter/features/settlements/presentation/pages/create_settlement_page.dart';
 import 'package:splito_flutter/features/activity/presentation/pages/activity_feed_page.dart';
 import 'package:splito_flutter/features/notifications/presentation/pages/notifications_page.dart';
+import 'package:splito_flutter/features/settings/presentation/pages/settings_page.dart';
 
 /// Global navigator keys for context access.
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -96,6 +97,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.notificationsName,
         path: AppRoutes.notificationsPath,
         builder: (context, state) => const NotificationsPage(),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoutes.settingsName,
+        path: AppRoutes.settingsPath,
+        builder: (context, state) => const SettingsPage(),
       ),
 
       // Main Dashboard Shell (Stateful Nested Navigation)

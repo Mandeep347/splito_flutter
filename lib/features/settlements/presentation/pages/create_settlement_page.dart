@@ -6,7 +6,9 @@ import 'package:splito_flutter/features/auth/presentation/providers/auth_provide
 import 'package:splito_flutter/features/groups/domain/entities/group_member.dart';
 import 'package:splito_flutter/features/settlements/domain/entities/settlement.dart';
 import 'package:splito_flutter/features/settlements/presentation/providers/settlement_providers.dart';
+import 'package:splito_flutter/features/settings/presentation/providers/settings_providers.dart';
 import 'package:splito_flutter/shared/widgets/app_text_field.dart';
+import 'package:splito_flutter/shared/widgets/currency_chip_selector.dart';
 import 'package:splito_flutter/shared/widgets/settle_up_button.dart';
 
 /// Screen form to record a new debt settlement transaction.
@@ -51,6 +53,7 @@ class _CreateSettlementPageState extends ConsumerState<CreateSettlementPage> {
 
   String? _selectedFromUserId;
   String? _selectedToUserId;
+  String? _selectedCurrency;
 
   @override
   void initState() {
@@ -109,7 +112,7 @@ class _CreateSettlementPageState extends ConsumerState<CreateSettlementPage> {
             fromUserId: _selectedFromUserId!,
             toUserId: _selectedToUserId!,
             amount: amount,
-            currency: widget.currency,
+            currency: _selectedCurrency!,
             note: _noteController.text.trim().isNotEmpty
                 ? _noteController.text.trim()
                 : null,
@@ -121,8 +124,11 @@ class _CreateSettlementPageState extends ConsumerState<CreateSettlementPage> {
 
   @override
   Widget build(BuildContext context) {
+    final defaultCurrency = ref.watch(defaultCurrencyProvider);
+    _selectedCurrency ??= defaultCurrency;
+
     final theme = Theme.of(context);
-    final currencySymbol = _getCurrencySymbol(widget.currency);
+    final currencySymbol = _getCurrencySymbol(_selectedCurrency!);
     final createSettlementState = ref.watch(createSettlementProvider);
 
     // Listen to provider states to handle popping on success or displaying failure overlays
@@ -273,6 +279,20 @@ class _CreateSettlementPageState extends ConsumerState<CreateSettlementPage> {
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 16),
+
+              // Currency selector
+              Text(
+                'Currency',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              CurrencyChipSelector(
+                selectedCurrency: _selectedCurrency!,
+                onChanged: (v) => setState(() => _selectedCurrency = v),
               ),
               const SizedBox(height: 16),
 

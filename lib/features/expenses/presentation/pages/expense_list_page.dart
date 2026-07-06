@@ -7,6 +7,7 @@ import 'package:splito_flutter/features/expenses/presentation/providers/expense_
 import 'package:splito_flutter/features/expenses/presentation/widgets/expense_list_tile.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group_member.dart';
 import 'package:splito_flutter/features/groups/presentation/providers/group_providers.dart';
+import 'package:splito_flutter/features/settings/presentation/providers/settings_providers.dart';
 import 'package:splito_flutter/shared/widgets/async_value_widget.dart';
 import 'package:splito_flutter/shared/widgets/empty_state_widget.dart';
 
@@ -89,6 +90,7 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(groupExpensesProvider(widget.groupId));
+    final isCompact = ref.watch(settingsProvider).valueOrNull?.compactExpenseList ?? false;
 
     return Scaffold(
       appBar: AppBar(
@@ -123,7 +125,9 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
             child: ListView.builder(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: isCompact
+                  ? const EdgeInsets.fromLTRB(12, 8, 12, 100)
+                  : const EdgeInsets.fromLTRB(16, 12, 16, 100),
               itemCount: items.length + (hasMore ? 1 : 0),
               itemBuilder: (context, index) {
                 if (index == items.length) {
@@ -135,7 +139,10 @@ class _ExpenseListPageState extends ConsumerState<ExpenseListPage> {
                   );
                 }
 
-                return ExpenseListTile(expense: items[index]);
+                return ExpenseListTile(
+                  expense: items[index],
+                  compact: isCompact,
+                );
               },
             ),
           );

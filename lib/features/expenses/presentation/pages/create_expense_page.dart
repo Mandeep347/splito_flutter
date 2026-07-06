@@ -11,7 +11,9 @@ import 'package:splito_flutter/features/expenses/presentation/widgets/paid_by_se
 import 'package:splito_flutter/features/expenses/presentation/widgets/participant_input_section.dart';
 import 'package:splito_flutter/features/expenses/presentation/widgets/split_type_selector.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group_member.dart';
+import 'package:splito_flutter/features/settings/presentation/providers/settings_providers.dart';
 import 'package:splito_flutter/shared/widgets/app_text_field.dart';
+import 'package:splito_flutter/shared/widgets/currency_chip_selector.dart';
 import 'package:splito_flutter/shared/widgets/loading_overlay.dart';
 import 'package:splito_flutter/shared/widgets/primary_button.dart';
 
@@ -51,6 +53,7 @@ class _CreateExpensePageState extends ConsumerState<CreateExpensePage> {
   SplitType _selectedSplitType = SplitType.equal;
   String? _selectedPaidByUserId;
   ExpenseSplitInput? _currentSplitInput;
+  String? _selectedCurrency;
 
   @override
   void initState() {
@@ -120,7 +123,7 @@ class _CreateExpensePageState extends ConsumerState<CreateExpensePage> {
                 ? _descriptionController.text.trim()
                 : null,
             totalAmount: amount,
-            currency: widget.currency,
+            currency: _selectedCurrency!,
             paidByUserId: _selectedPaidByUserId!,
             splitInput: _currentSplitInput!,
           );
@@ -167,8 +170,11 @@ class _CreateExpensePageState extends ConsumerState<CreateExpensePage> {
 
   @override
   Widget build(BuildContext context) {
+    final defaultCurrency = ref.watch(defaultCurrencyProvider);
+    _selectedCurrency ??= defaultCurrency;
+
     final theme = Theme.of(context);
-    final currencySymbol = _getCurrencySymbol(widget.currency);
+    final currencySymbol = _getCurrencySymbol(_selectedCurrency!);
     final expenseState = ref.watch(createExpenseProvider);
 
     // Listen to changes in the createExpenseProvider to auto-pop on success or show snackbars on errors
@@ -249,6 +255,20 @@ class _CreateExpensePageState extends ConsumerState<CreateExpensePage> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+
+                // Currency selector
+                Text(
+                  'Currency',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                CurrencyChipSelector(
+                  selectedCurrency: _selectedCurrency!,
+                  onChanged: (v) => setState(() => _selectedCurrency = v),
                 ),
                 const SizedBox(height: 16),
 
