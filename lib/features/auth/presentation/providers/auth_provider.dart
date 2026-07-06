@@ -8,6 +8,9 @@ import 'package:splito_flutter/features/auth/domain/usecases/get_me_usecase.dart
 import 'package:splito_flutter/features/auth/domain/usecases/login_usecase.dart';
 import 'package:splito_flutter/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:splito_flutter/features/auth/domain/usecases/register_usecase.dart';
+import 'package:splito_flutter/features/notifications/presentation/providers/notification_providers.dart';
+import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
+import 'package:splito_flutter/features/groups/presentation/providers/group_providers.dart';
 
 /// Sealed class representing the different authentication states.
 sealed class AuthState {
@@ -150,12 +153,21 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     try {
       final logoutUseCase = ref.read(logoutUseCaseProvider);
       await logoutUseCase();
+      _invalidateStaleData();
       state = const AsyncValue.data(AuthStateUnauthenticated());
       ref.invalidateSelf();
     } catch (e) {
+      _invalidateStaleData();
       state = const AsyncValue.data(AuthStateUnauthenticated());
       ref.invalidateSelf();
     }
+  }
+
+  void _invalidateStaleData() {
+    ref.invalidate(notificationsProvider);
+    ref.invalidate(unreadCountProvider);
+    ref.invalidate(myOverallBalancesProvider);
+    ref.invalidate(myGroupsProvider);
   }
 
   /// Attempts to recheck and refresh the current active user details on start.

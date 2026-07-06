@@ -16,6 +16,8 @@ import 'package:splito_flutter/features/expenses/presentation/pages/expense_list
 import 'package:splito_flutter/features/balances/presentation/pages/group_balances_page.dart';
 import 'package:splito_flutter/features/settlements/presentation/pages/settlement_list_page.dart';
 import 'package:splito_flutter/features/settlements/presentation/pages/create_settlement_page.dart';
+import 'package:splito_flutter/features/activity/presentation/pages/activity_feed_page.dart';
+import 'package:splito_flutter/features/notifications/presentation/pages/notifications_page.dart';
 
 /// Global navigator keys for context access.
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -88,6 +90,12 @@ final goRouterProvider = Provider<GoRouter>((ref) {
         name: AppRoutes.registerName,
         path: AppRoutes.registerPath,
         builder: (context, state) => const RegisterPage(),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoutes.notificationsName,
+        path: AppRoutes.notificationsPath,
+        builder: (context, state) => const NotificationsPage(),
       ),
 
       // Main Dashboard Shell (Stateful Nested Navigation)
@@ -194,6 +202,19 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                             members: members,
                             prefilledFromUserId: prefilledFromUserId,
                             prefilledToUserId: prefilledToUserId,
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        name: AppRoutes.activityFeedName,
+                        path: AppRoutes.activityFeedPath,
+                        builder: (context, state) {
+                          final groupId = state.pathParameters['groupId'] ?? '';
+                          final extra = state.extra as Map<String, dynamic>?;
+                          final groupName = extra?['groupName'] as String? ?? '';
+                          return ActivityFeedPage(
+                            groupId: groupId,
+                            groupName: groupName,
                           );
                         },
                       ),

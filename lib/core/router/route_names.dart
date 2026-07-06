@@ -33,6 +33,12 @@ abstract class AppRoutes {
   static const String groupMembersName = 'groupMembers';
   static const String groupMembersPath = 'details/:groupId/members';
 
+  static const String activityFeedPath = 'activity';
+  static const String activityFeedName = 'activityFeed';
+
+  static const String notificationsPath = '/notifications';
+  static const String notificationsName = 'notifications';
+
   // Profile Tab Routes (Nested inside StatefulShellRoute)
   static const String profileName = 'profile';
   static const String profilePath = '/profile';

@@ -5,6 +5,7 @@ import 'package:splito_flutter/features/auth/presentation/providers/auth_provide
 import 'package:splito_flutter/features/profile/presentation/providers/profile_provider.dart';
 import 'package:splito_flutter/shared/widgets/app_text_field.dart';
 import 'package:splito_flutter/shared/widgets/primary_button.dart';
+import 'package:splito_flutter/shared/widgets/notification_bell.dart';
 
 /// Full screen view displaying user profile details and sign-out actions.
 class ProfilePage extends ConsumerWidget {
@@ -25,6 +26,9 @@ class ProfilePage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Profile'),
+        actions: const [
+          NotificationBell(),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),

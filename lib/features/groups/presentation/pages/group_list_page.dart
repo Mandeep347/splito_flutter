@@ -9,6 +9,8 @@ import 'package:splito_flutter/shared/widgets/async_value_widget.dart';
 import 'package:splito_flutter/shared/widgets/empty_state_widget.dart';
 import 'package:splito_flutter/shared/widgets/overall_balance_card.dart';
 import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
+import 'package:splito_flutter/shared/widgets/notification_bell.dart';
+import 'package:splito_flutter/features/notifications/presentation/providers/notification_providers.dart';
 
 /// Screen listing all groups the user belongs to.
 class GroupListPage extends ConsumerWidget {
@@ -42,6 +44,7 @@ class GroupListPage extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Groups'),
         actions: [
+          const NotificationBell(),
           IconButton(
             icon: const Icon(Icons.add_rounded),
             onPressed: () => CreateGroupSheet.show(context),
@@ -51,7 +54,9 @@ class GroupListPage extends ConsumerWidget {
       body: AsyncValueWidget<List<Group>>(
         value: groupsAsync,
         data: (groups) {
-          if (groups.isEmpty) {
+          final activeGroups = groups.where((g) => g.isActive).toList();
+
+          if (activeGroups.isEmpty) {
             return EmptyStateWidget(
               icon: Icons.group_outlined,
               title: 'No groups yet',
@@ -61,13 +66,29 @@ class GroupListPage extends ConsumerWidget {
             );
           }
 
+          final unsettledGroups = <Group>[];
+          final settledGroups = <Group>[];
+
+          for (final group in activeGroups) {
+            final balancesState = ref.watch(groupBalancesProvider(group.id));
+            final balances = balancesState.valueOrNull;
+
+            if (balances != null && balances.isAllSettled) {
+              settledGroups.add(group);
+            } else {
+              unsettledGroups.add(group);
+            }
+          }
+
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(myGroupsProvider);
               ref.invalidate(myOverallBalancesProvider);
+              ref.invalidate(unreadCountProvider);
               try {
                 await ref.read(myGroupsProvider.future);
                 await ref.read(myOverallBalancesProvider.future);
+                await ref.read(unreadCountProvider.future);
               } catch (_) {}
             },
             child: CustomScrollView(
@@ -76,18 +97,61 @@ class GroupListPage extends ConsumerWidget {
                 const SliverToBoxAdapter(
                   child: OverallBalanceCard(),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final group = groups[index];
-                        return GroupCard(group: group);
-                      },
-                      childCount: groups.length,
+                // Unsettled Groups
+                if (unsettledGroups.isNotEmpty)
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final group = unsettledGroups[index];
+                          return GroupCard(group: group);
+                        },
+                        childCount: unsettledGroups.length,
+                      ),
+                    ),
+                  )
+                else
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 32.0),
+                      child: Center(
+                        child: Text(
+                          'No unsettled groups',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                // History Section
+                if (settledGroups.isNotEmpty) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.only(left: 16.0, top: 24.0, bottom: 8.0),
+                      child: Text(
+                        'History',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final group = settledGroups[index];
+                          return GroupCard(group: group);
+                        },
+                        childCount: settledGroups.length,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           );

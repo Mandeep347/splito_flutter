@@ -11,6 +11,7 @@ abstract class StorageKeys {
   static const String expensesCacheBox = 'expenses_cache';
   static const String friendsCacheBox = 'friends_cache_box';
   static const String offlineQueueBox = 'offline_queue_box';
+  static const String activityCacheBox = 'activity_cache';
 
   // --- Settings Box Keys ---
   static const String themeModeKey = 'settings_theme_mode';
