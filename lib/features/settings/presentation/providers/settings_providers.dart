@@ -101,7 +101,9 @@ final themeSyncProvider = Provider<void>((ref) {
     'dark' => ThemeMode.dark,
     _ => ThemeMode.system,
   };
-  ref.read(themeModeProvider.notifier).state = mode;
+  Future.microtask(() {
+    ref.read(themeModeProvider.notifier).state = mode;
+  });
 });
 
 /// Exposes user preferred default currency symbol.

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/core/router/app_router.dart';
@@ -6,6 +7,9 @@ import 'package:splito_flutter/core/theme/theme_provider.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
 import 'package:splito_flutter/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:splito_flutter/features/settings/presentation/providers/settings_providers.dart';
+import 'package:splito_flutter/features/groups/presentation/providers/group_providers.dart';
+import 'package:splito_flutter/features/expenses/presentation/providers/expense_providers.dart';
+import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
 
 /// The root layout widget of the Splito application.
 /// Inherits [ConsumerStatefulWidget] to watch navigation configurations,
@@ -20,24 +24,66 @@ class SplitoApp extends ConsumerStatefulWidget {
 
 class _SplitoAppState extends ConsumerState<SplitoApp> {
   late final AppLifecycleListener _lifecycleListener;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _lifecycleListener = AppLifecycleListener(
       onResume: _onAppResume,
+      onPause: _onAppPause,
     );
+    _startPolling();
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _refreshData();
+    });
+  }
+
+  void _stopPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
   }
 
   void _onAppResume() {
-    // Refresh unread count when app comes to foreground, if authenticated
+    _startPolling();
+    _refreshData();
+  }
+
+  void _onAppPause() {
+    _stopPolling();
+  }
+
+  void _refreshData() {
     if (ref.read(authStateProvider)) {
+      // Refresh core global providers
       ref.read(unreadCountProvider.notifier).refresh();
+      ref.read(notificationsProvider.notifier).refresh();
+      ref.read(myGroupsProvider.notifier).refresh();
+      ref.read(myOverallBalancesProvider.notifier).refresh();
+
+      // Dynamically detect if we are on a group details or nested group page,
+      // and refresh providers for that group.
+      try {
+        final router = ref.read(goRouterProvider);
+        final pathParams = router.routerDelegate.currentConfiguration.pathParameters;
+        final groupId = pathParams['groupId'];
+        if (groupId != null && groupId.isNotEmpty) {
+          ref.invalidate(groupDetailProvider(groupId));
+          ref.invalidate(groupExpensesProvider(groupId));
+          ref.invalidate(groupBalancesProvider(groupId));
+          ref.invalidate(groupMembersProvider(groupId));
+        }
+      } catch (_) {}
     }
   }
 
   @override
   void dispose() {
+    _stopPolling();
     _lifecycleListener.dispose();
     super.dispose();
   }

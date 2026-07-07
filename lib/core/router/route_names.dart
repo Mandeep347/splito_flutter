@@ -42,6 +42,9 @@ abstract class AppRoutes {
   static const String settingsPath = '/settings';
   static const String settingsName = 'settings';
 
+  static const String groupAnalyticsPath = 'analytics';
+  static const String groupAnalyticsName = 'groupAnalytics';
+
   // Profile Tab Routes (Nested inside StatefulShellRoute)
   static const String profileName = 'profile';
   static const String profilePath = '/profile';

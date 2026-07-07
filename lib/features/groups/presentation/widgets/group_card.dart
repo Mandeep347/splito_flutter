@@ -6,6 +6,7 @@ import 'package:splito_flutter/core/theme/theme_extensions.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group.dart';
 import 'package:splito_flutter/core/theme/financial_colors.dart';
 import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
+import 'package:splito_flutter/features/analytics/presentation/providers/analytics_providers.dart';
 
 /// Card displaying metadata for a single group in lists.
 class GroupCard extends ConsumerWidget {
@@ -23,6 +24,9 @@ class GroupCard extends ConsumerWidget {
     final theme = Theme.of(context);
     final ext = theme.extension<AppThemeExtension>()!;
     final firstLetter = group.name.trim().isNotEmpty ? group.name.trim()[0].toUpperCase() : '';
+
+    // PERF NOTE: each GroupCard triggers a separate analytics computation via groupAnalyticsProvider. Phase 10 will optimise this with a batch endpoint or client-side cache.
+    final totalSpent = ref.watch(groupTotalSpentProvider(group.id));
 
     final cardContent = Card(
       margin: EdgeInsets.symmetric(horizontal: ext.spaceLG, vertical: ext.spaceXS),
@@ -110,6 +114,25 @@ class GroupCard extends ConsumerWidget {
                             );
                           },
                         ),
+                    if (totalSpent > 0) ...[
+                      SizedBox(height: ext.spaceXXS),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 12,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${_currencySymbol(group.defaultCurrency)}${totalSpent.toStringAsFixed(0)} total',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -147,5 +170,20 @@ class GroupCard extends ConsumerWidget {
     }
 
     return cardContent;
+  }
+
+  String _currencySymbol(String c) {
+    switch (c) {
+      case 'INR':
+        return '₹';
+      case 'USD':
+        return '\$';
+      case 'EUR':
+        return '€';
+      case 'GBP':
+        return '£';
+      default:
+        return '$c ';
+    }
   }
 }

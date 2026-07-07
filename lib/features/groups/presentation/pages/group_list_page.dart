@@ -11,6 +11,7 @@ import 'package:splito_flutter/shared/widgets/overall_balance_card.dart';
 import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
 import 'package:splito_flutter/shared/widgets/notification_bell.dart';
 import 'package:splito_flutter/features/notifications/presentation/providers/notification_providers.dart';
+import 'package:splito_flutter/features/expenses/presentation/providers/expense_providers.dart';
 
 /// Screen listing all groups the user belongs to.
 class GroupListPage extends ConsumerWidget {
@@ -74,17 +75,30 @@ class GroupListPage extends ConsumerWidget {
             final balances = balancesState.valueOrNull;
 
             if (balances != null && balances.isAllSettled) {
-              settledGroups.add(group);
+              final expensesState = ref.watch(groupExpensesProvider(group.id));
+              final expenses = expensesState.valueOrNull;
+
+              if (expenses != null && expenses.totalItems > 0) {
+                settledGroups.add(group);
+              } else {
+                unsettledGroups.add(group);
+              }
             } else {
               unsettledGroups.add(group);
             }
           }
+
+          // Sort unsettled groups by createdAt descending (newest on top)
+          unsettledGroups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(myGroupsProvider);
               ref.invalidate(myOverallBalancesProvider);
               ref.invalidate(unreadCountProvider);
+              // Analytics is derived from expenses — invalidating
+              // groupExpensesProvider causes analytics to recompute
+              // automatically. No explicit analytics invalidation needed.
               try {
                 await ref.read(myGroupsProvider.future);
                 await ref.read(myOverallBalancesProvider.future);

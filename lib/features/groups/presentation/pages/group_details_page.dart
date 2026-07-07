@@ -21,6 +21,8 @@ import 'package:splito_flutter/shared/widgets/balance_row.dart';
 import 'package:splito_flutter/features/activity/presentation/providers/activity_providers.dart';
 import 'package:splito_flutter/features/activity/presentation/widgets/activity_list_tile.dart';
 import 'package:splito_flutter/features/activity/domain/entities/activity_feed.dart';
+import 'package:splito_flutter/features/analytics/presentation/providers/analytics_providers.dart';
+import 'package:splito_flutter/shared/widgets/amount_display.dart';
 
 /// Screen displaying the details of a single group.
 class GroupDetailsPage extends ConsumerWidget {
@@ -238,6 +240,36 @@ class GroupDetailsPage extends ConsumerWidget {
                                       ),
                                   ],
                                 ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.receipt_long_outlined,
+                                    size: 14,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Builder(
+                                    builder: (context) {
+                                      final totalSpent = ref.watch(groupTotalSpentProvider(groupId));
+                                      final symbol = group.defaultCurrency == 'INR'
+                                          ? '₹'
+                                          : (group.defaultCurrency == 'USD' ? '\$' : '${group.defaultCurrency} ');
+                                      final formatter = NumberFormat('#,##0.00');
+                                      final formattedTotal = '$symbol${formatter.format(totalSpent)}';
+
+                                      return Text(
+                                        totalSpent > 0
+                                            ? 'Total spent: $formattedTotal'
+                                            : 'No expenses yet',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -410,7 +442,7 @@ class GroupDetailsPage extends ConsumerWidget {
                       padding: EdgeInsets.only(bottom: ext.spaceLG),
                       child: LayoutBuilder(
                         builder: (context, constraints) {
-                          final columns = constraints.maxWidth > 600 ? 4 : 2;
+                          final columns = constraints.maxWidth > 600 ? 5 : 3;
                           final itemWidth = constraints.maxWidth / columns;
 
                           return Wrap(
@@ -477,6 +509,22 @@ class GroupDetailsPage extends ConsumerWidget {
                                   );
                                 },
                               ),
+                              _buildActionItem(
+                                context,
+                                icon: Icons.bar_chart_outlined,
+                                label: 'Analytics',
+                                width: itemWidth,
+                                onTap: () {
+                                  context.goNamed(
+                                    AppRoutes.groupAnalyticsName,
+                                    pathParameters: {'groupId': group.id},
+                                    extra: {
+                                      'groupName': group.name,
+                                      'currency': group.defaultCurrency,
+                                    },
+                                  );
+                                },
+                              ),
                             ],
                           );
                         },
@@ -522,6 +570,69 @@ class GroupDetailsPage extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    ref.watch(groupAnalyticsProvider(group.id)).when(
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
+                          data: (a) => a.hasData
+                              ? Card(
+                                  elevation: 0,
+                                  margin: EdgeInsets.only(bottom: ext.spaceLG),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16.0),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Total spent',
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                color: theme.colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            AmountDisplay(
+                                              amount: a.totalExpenses,
+                                              currency: group.defaultCurrency,
+                                              style: theme.textTheme.titleMedium,
+                                            ),
+                                          ],
+                                        ),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Avg expense',
+                                              style: theme.textTheme.bodySmall?.copyWith(
+                                                color: theme.colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            AmountDisplay(
+                                              amount: a.averageExpenseAmount,
+                                              currency: group.defaultCurrency,
+                                              style: theme.textTheme.titleMedium,
+                                            ),
+                                          ],
+                                        ),
+                                        TextButton(
+                                          onPressed: () => context.goNamed(
+                                            AppRoutes.groupAnalyticsName,
+                                            pathParameters: {'groupId': group.id},
+                                            extra: {
+                                              'groupName': group.name,
+                                              'currency': group.defaultCurrency,
+                                            },
+                                          ),
+                                          child: const Text('Analytics →'),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
                   ]),
                 ),
               ),

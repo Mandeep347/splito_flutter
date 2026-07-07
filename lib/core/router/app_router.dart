@@ -19,6 +19,7 @@ import 'package:splito_flutter/features/settlements/presentation/pages/create_se
 import 'package:splito_flutter/features/activity/presentation/pages/activity_feed_page.dart';
 import 'package:splito_flutter/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:splito_flutter/features/settings/presentation/pages/settings_page.dart';
+import 'package:splito_flutter/features/analytics/presentation/pages/group_analytics_page.dart';
 
 /// Global navigator keys for context access.
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -222,6 +223,21 @@ final goRouterProvider = Provider<GoRouter>((ref) {
                           return ActivityFeedPage(
                             groupId: groupId,
                             groupName: groupName,
+                          );
+                        },
+                      ),
+                      GoRoute(
+                        name: AppRoutes.groupAnalyticsName,
+                        path: AppRoutes.groupAnalyticsPath,
+                        builder: (context, state) {
+                          final groupId = state.pathParameters['groupId'] ?? '';
+                          final extra = state.extra as Map<String, dynamic>?;
+                          final groupName = extra?['groupName'] as String? ?? '';
+                          final currency = extra?['currency'] as String? ?? 'INR';
+                          return GroupAnalyticsPage(
+                            groupId: groupId,
+                            groupName: groupName,
+                            currency: currency,
                           );
                         },
                       ),

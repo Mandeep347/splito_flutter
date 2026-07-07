@@ -37,9 +37,25 @@ abstract class ErrorMapper {
         final responseData = response?.data;
 
         if (responseData is Map<String, dynamic>) {
-          final message = responseData['message'] as String? ??
-              responseData['detail'] as String? ??
-              'A server error occurred. Please try again later.';
+          final messageVal = responseData['message'];
+          final detailVal = responseData['detail'];
+          String message = 'A server error occurred. Please try again later.';
+          if (messageVal is String) {
+            message = messageVal;
+          } else if (detailVal is String) {
+            message = detailVal;
+          } else if (detailVal is List && detailVal.isNotEmpty) {
+            final first = detailVal.first;
+            if (first is String) {
+              message = first;
+            } else if (first is Map && first.containsKey('msg')) {
+              message = first['msg']?.toString() ?? message;
+            } else {
+              message = detailVal.toString();
+            }
+          } else if (detailVal != null) {
+            message = detailVal.toString();
+          }
               
           final rawErrors = responseData['errors'] as Map<String, dynamic>?;
 

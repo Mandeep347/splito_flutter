@@ -36,6 +36,8 @@ class AsyncValueWidget<T> extends StatelessWidget {
     final ext = theme.extension<AppThemeExtension>()!;
 
     return value.when(
+      skipLoadingOnRefresh: true,
+      skipLoadingOnReload: true,
       data: data,
       loading: loading ??
           () => const Center(

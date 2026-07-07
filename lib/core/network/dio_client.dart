@@ -205,9 +205,25 @@ class _ErrorInterceptor extends Interceptor {
       final statusCode = response?.statusCode;
       final data = response?.data;
       
-      final message = data is Map<String, dynamic>
-          ? (data['message'] as String? ?? data['detail'] as String? ?? 'An HTTP error occurred')
-          : 'An HTTP error occurred';
+      final messageVal = data is Map<String, dynamic> ? data['message'] : null;
+      final detailVal = data is Map<String, dynamic> ? data['detail'] : null;
+      String message = 'An HTTP error occurred';
+      if (messageVal is String) {
+        message = messageVal;
+      } else if (detailVal is String) {
+        message = detailVal;
+      } else if (detailVal is List && detailVal.isNotEmpty) {
+        final first = detailVal.first;
+        if (first is String) {
+          message = first;
+        } else if (first is Map && first.containsKey('msg')) {
+          message = first['msg']?.toString() ?? message;
+        } else {
+          message = detailVal.toString();
+        }
+      } else if (detailVal != null) {
+        message = detailVal.toString();
+      }
 
       switch (statusCode) {
         case 401:

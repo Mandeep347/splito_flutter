@@ -20,6 +20,7 @@ class NotificationBell extends ConsumerWidget {
         IconButton(
           icon: const Icon(Icons.notifications_outlined),
           onPressed: () {
+            ref.read(notificationsProvider.notifier).refresh();
             context.goNamed(AppRoutes.notificationsName);
           },
         ),
