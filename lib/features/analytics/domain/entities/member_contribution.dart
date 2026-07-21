@@ -12,8 +12,15 @@ class MemberContribution {
   /// The total amount this member owes across all expenses.
   final double totalOwed;
 
+  /// The net balance for this member (positive means the group owes them,
+  /// negative means they owe the group).
+  final double netBalance;
+
   /// The number of active expenses paid for by this member.
   final int expenseCount;
+
+  /// The percentage of total spending contributed by this member.
+  final double percentageOfTotal;
 
   /// Creates a new [MemberContribution] instance.
   const MemberContribution({
@@ -21,12 +28,10 @@ class MemberContribution {
     required this.name,
     required this.totalPaid,
     required this.totalOwed,
+    required this.netBalance,
     required this.expenseCount,
+    required this.percentageOfTotal,
   });
-
-  /// The net balance for this member (positive means the group owes them,
-  /// negative means they owe the group).
-  double get netBalance => totalPaid - totalOwed;
 
   /// Returns true if this member has paid for at least one expense.
   bool get isTopPayer => totalPaid > 0;

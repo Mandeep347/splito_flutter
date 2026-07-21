@@ -1,26 +1,16 @@
 import 'package:splito_flutter/core/errors/failures.dart';
 import 'package:splito_flutter/core/errors/exceptions.dart';
-import 'package:splito_flutter/features/expenses/domain/repositories/i_expense_repository.dart';
-import 'package:splito_flutter/features/settlements/domain/repositories/i_settlement_repository.dart';
 import '../entities/group_analytics.dart';
-import '../services/analytics_computation_service.dart';
+import '../repositories/i_analytics_repository.dart';
 
-/// Usecase returning aggregated statistical properties computed client-side for a group.
+/// Usecase returning group analytics metrics fetched from the remote endpoint.
 class ComputeGroupAnalyticsUseCase {
-  /// The expense repository interface.
-  final IExpenseRepository expenseRepository;
-
-  /// The settlement repository interface.
-  final ISettlementRepository settlementRepository;
-
-  /// The analytical computation service.
-  final AnalyticsComputationService computationService;
+  /// The analytics repository interface.
+  final IAnalyticsRepository repository;
 
   /// Creates a const [ComputeGroupAnalyticsUseCase] instance.
   const ComputeGroupAnalyticsUseCase({
-    required this.expenseRepository,
-    required this.settlementRepository,
-    required this.computationService,
+    required this.repository,
   });
 
   /// Executes the usecase.
@@ -30,21 +20,7 @@ class ComputeGroupAnalyticsUseCase {
     required String currency,
   }) async {
     try {
-      final paginatedExpenses = await expenseRepository.getGroupExpenses(
-        groupId: groupId,
-        page: 1,
-        limit: 1000,
-      );
-      final settlements = await settlementRepository.getGroupSettlements(
-        groupId: groupId,
-      );
-
-      return computationService.computeGroupAnalytics(
-        groupId: groupId,
-        currency: currency,
-        expenses: paginatedExpenses.items,
-        settlements: settlements,
-      );
+      return await repository.getGroupAnalytics(groupId);
     } on Failure {
       rethrow;
     } on NetworkException catch (e) {

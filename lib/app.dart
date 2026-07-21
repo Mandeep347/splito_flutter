@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/core/router/app_router.dart';
+import 'package:splito_flutter/core/router/deep_link_handler.dart';
 import 'package:splito_flutter/core/theme/custom_theme.dart';
 import 'package:splito_flutter/core/theme/theme_provider.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
@@ -34,6 +35,11 @@ class _SplitoAppState extends ConsumerState<SplitoApp> {
       onPause: _onAppPause,
     );
     _startPolling();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final router = ref.read(goRouterProvider);
+      DeepLinkHandler.instance.init(router: router);
+    });
   }
 
   void _startPolling() {
@@ -85,6 +91,7 @@ class _SplitoAppState extends ConsumerState<SplitoApp> {
   void dispose() {
     _stopPolling();
     _lifecycleListener.dispose();
+    DeepLinkHandler.instance.dispose();
     super.dispose();
   }
 

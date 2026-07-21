@@ -207,6 +207,9 @@ class _ErrorInterceptor extends Interceptor {
       
       final messageVal = data is Map<String, dynamic> ? data['message'] : null;
       final detailVal = data is Map<String, dynamic> ? data['detail'] : null;
+      final codeVal = data is Map<String, dynamic> ? data['code'] : null;
+      final code = codeVal is String ? codeVal : null;
+
       String message = 'An HTTP error occurred';
       if (messageVal is String) {
         message = messageVal;
@@ -227,19 +230,19 @@ class _ErrorInterceptor extends Interceptor {
 
       switch (statusCode) {
         case 401:
-          return handler.next(err.copyWith(error: UnauthorizedException(message)));
+          return handler.next(err.copyWith(error: UnauthorizedException(message, code)));
         case 403:
-          return handler.next(err.copyWith(error: ForbiddenException(message)));
+          return handler.next(err.copyWith(error: ForbiddenException(message, code)));
         case 404:
-          return handler.next(err.copyWith(error: NotFoundException(message)));
+          return handler.next(err.copyWith(error: NotFoundException(message, code)));
         case 409:
-          return handler.next(err.copyWith(error: ConflictException(message)));
+          return handler.next(err.copyWith(error: ConflictException(message, code)));
         case 422:
           final errors = data is Map<String, dynamic> ? data['errors'] as Map<String, dynamic>? : null;
-          return handler.next(err.copyWith(error: BusinessRuleException(message: message, errors: errors)));
+          return handler.next(err.copyWith(error: BusinessRuleException(message: message, code: code, errors: errors)));
         default:
           return handler.next(err.copyWith(
-            error: ServerException(message: message, statusCode: statusCode),
+            error: ServerException(message: message, code: code, statusCode: statusCode),
           ));
       }
     } else if (err.type == DioExceptionType.connectionTimeout ||

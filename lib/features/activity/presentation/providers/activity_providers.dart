@@ -2,8 +2,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/features/activity/data/repositories/activity_repository_impl.dart';
 import 'package:splito_flutter/features/activity/domain/entities/activity_feed.dart';
+import 'package:splito_flutter/features/activity/domain/entities/activity_item.dart';
 import 'package:splito_flutter/features/activity/domain/usecases/get_group_activities_usecase.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
+import 'package:splito_flutter/features/groups/presentation/providers/group_providers.dart';
 
 // ============================================================================
 // UseCase Providers
@@ -78,4 +80,46 @@ class GroupActivityNotifier extends FamilyAsyncNotifier<ActivityFeed, String> {
 final groupActivityProvider =
     AsyncNotifierProvider.family<GroupActivityNotifier, ActivityFeed, String>(() {
   return GroupActivityNotifier();
+});
+
+/// Aggregates recent activity items across all active groups.
+final globalActivityProvider = Provider<AsyncValue<List<ActivityItem>>>((ref) {
+  final groupsState = ref.watch(myGroupsProvider);
+
+  return groupsState.when(
+    loading: () => const AsyncValue.loading(),
+    error: (err, stack) => AsyncValue.error(err, stack),
+    data: (groups) {
+      final activeGroups = groups.where((g) => g.isActive).toList();
+      final List<ActivityItem> items = [];
+      bool anyLoading = false;
+      Object? firstError;
+      StackTrace? firstStack;
+
+      for (final group in activeGroups) {
+        final feedState = ref.watch(groupActivityProvider(group.id));
+        feedState.when(
+          data: (feed) {
+            items.addAll(feed.items);
+          },
+          loading: () => anyLoading = true,
+          error: (err, stack) {
+            firstError ??= err;
+            firstStack ??= stack;
+          },
+        );
+      }
+
+      if (anyLoading && items.isEmpty) {
+        return const AsyncValue.loading();
+      }
+
+      if (firstError != null && items.isEmpty) {
+        return AsyncValue.error(firstError!, firstStack!);
+      }
+
+      items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return AsyncValue.data(items);
+    },
+  );
 });

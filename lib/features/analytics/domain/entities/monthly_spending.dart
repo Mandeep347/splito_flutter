@@ -6,6 +6,9 @@ class MonthlySpending {
   /// The calendar month (1-indexed, e.g. 1 for January).
   final int month;
 
+  /// User-friendly month label.
+  final String monthLabel;
+
   /// The total transaction spending amount in this month.
   final double totalAmount;
 
@@ -19,16 +22,11 @@ class MonthlySpending {
   const MonthlySpending({
     required this.year,
     required this.month,
+    required this.monthLabel,
     required this.totalAmount,
     required this.expenseCount,
-    required this.currency,
+    this.currency = 'INR',
   });
-
-  /// User-friendly abbreviated month label.
-  String get monthLabel => const [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
-      ][month - 1];
 
   /// Friendly label representing the year-month span, e.g. 'Jan 2026'.
   String get periodLabel => '$monthLabel $year';

@@ -12,12 +12,16 @@ class LoggedInUser {
   /// User's preferred currency (e.g., USD, EUR).
   final String preferredCurrency;
 
+  /// Whether the user's email has been verified.
+  final bool isEmailVerified;
+
   /// Creates a new [LoggedInUser] instance.
   const LoggedInUser({
     required this.id,
     required this.name,
     required this.email,
     required this.preferredCurrency,
+    required this.isEmailVerified,
   });
 
   /// Computes the user's initials from their name.

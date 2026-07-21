@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:splito_flutter/core/errors/failures.dart';
+import 'package:splito_flutter/core/errors/error_handler.dart';
 import 'package:splito_flutter/core/router/route_names.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
 import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
@@ -66,8 +67,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         // Show error and clear loading state on failure
         if (next is AsyncError) {
           final error = next.error;
+          if (error is Failure && error.code == 'EMAIL_NOT_VERIFIED') {
+            context.goNamed(
+              AppRoutes.verifyEmailPendingName,
+              extra: _emailController.text.trim(),
+            );
+            return;
+          }
           final message = error is Failure
-              ? error.message
+              ? AppErrorHandler.toUserMessage(error)
               : 'Login failed. Please try again.';
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -82,74 +90,93 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
     final authAsync = ref.watch(authNotifierProvider);
     final isLoading = authAsync is AsyncLoading;
+    final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign In'),
-      ),
-      body: LoadingOverlay(
-        isLoading: isLoading,
-        child: AuthFormWrapper(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppTextField(
-                  controller: _emailController,
-                  labelText: 'Email',
-                  hintText: 'name@example.com',
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Email is required';
-                    }
-                    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                    if (!emailRegex.hasMatch(value)) {
-                      return 'Enter a valid email address';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  controller: _passwordController,
-                  labelText: 'Password',
-                  obscureText: _obscurePassword,
-                  textInputAction: TextInputAction.done,
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+    return LoadingOverlay(
+      isLoading: isLoading,
+      child: AuthFormWrapper(
+        title: 'Welcome back',
+        subtitle: 'Sign in to your Splito account',
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppTextField(
+                controller: _emailController,
+                labelText: 'Email',
+                hintText: 'name@example.com',
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                prefixIcon: const Icon(Icons.email_outlined),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Email is required';
+                  }
+                  final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+                  if (!emailRegex.hasMatch(value)) {
+                    return 'Enter a valid email address';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              AppTextField(
+                controller: _passwordController,
+                labelText: 'Password',
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.done,
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   ),
-                  onFieldSubmitted: (_) => _submit(),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Password is required';
-                    }
-                    if (value.length < 8 || value.length > 128) {
-                      return 'Password must be between 8 and 128 characters';
-                    }
-                    return null;
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+                onFieldSubmitted: (_) => _submit(),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Password is required';
+                  }
+                  if (value.length < 8 || value.length > 128) {
+                    return 'Password must be between 8 and 128 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {
+                    context.goNamed(AppRoutes.forgotPasswordName);
                   },
+                  style: TextButton.styleFrom(
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 0),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'Forgot Password?',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 24),
-                PrimaryButton(
-                  label: 'Sign In',
-                  isLoading: isLoading,
-                  onPressed: _submit,
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => context.goNamed(AppRoutes.registerName),
-                  child: const Text("Don't have an account? Sign Up"),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 24),
+              PrimaryButton(
+                label: 'Sign In',
+                isLoading: isLoading,
+                onPressed: _submit,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.goNamed(AppRoutes.registerName),
+                child: const Text("Don't have an account? Sign Up"),
+              ),
+            ],
           ),
         ),
       ),

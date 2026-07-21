@@ -7,7 +7,22 @@ abstract class AppRoutes {
   static const String registerName = 'register';
   static const String registerPath = '/register';
 
+  static const String verifyEmailPendingName = 'verifyEmailPending';
+  static const String verifyEmailPendingPath = '/verify-email-pending';
+
+  static const String verifyEmailName = 'verifyEmail';
+  static const String verifyEmailPath = '/verify-email';
+
+  static const String forgotPasswordName = 'forgotPassword';
+  static const String forgotPasswordPath = '/forgot-password';
+
+  static const String resetPasswordName = 'resetPassword';
+  static const String resetPasswordPath = '/reset-password';
+
   // Groups Tab Routes (Nested inside StatefulShellRoute)
+  static const String dashboardName = 'dashboard';
+  static const String dashboardPath = '/dashboard';
+
   static const String groupsName = 'groups';
   static const String groupsPath = '/groups';
 
@@ -44,6 +59,16 @@ abstract class AppRoutes {
 
   static const String groupAnalyticsPath = 'analytics';
   static const String groupAnalyticsName = 'groupAnalytics';
+
+  // Global Navigation Branch Routes
+  static const String globalActivityName = 'globalActivity';
+  static const String globalActivityPath = '/activity';
+
+  static const String globalExpensesName = 'globalExpenses';
+  static const String globalExpensesPath = '/expenses';
+
+  static const String globalStatisticsName = 'globalStatistics';
+  static const String globalStatisticsPath = '/statistics';
 
   // Profile Tab Routes (Nested inside StatefulShellRoute)
   static const String profileName = 'profile';

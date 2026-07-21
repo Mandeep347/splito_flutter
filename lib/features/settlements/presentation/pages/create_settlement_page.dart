@@ -10,6 +10,8 @@ import 'package:splito_flutter/features/settings/presentation/providers/settings
 import 'package:splito_flutter/shared/widgets/app_text_field.dart';
 import 'package:splito_flutter/shared/widgets/currency_chip_selector.dart';
 import 'package:splito_flutter/shared/widgets/settle_up_button.dart';
+import 'package:splito_flutter/shared/widgets/member_avatar.dart';
+import 'package:splito_flutter/core/responsive/responsive_layout.dart';
 
 /// Screen form to record a new debt settlement transaction.
 class CreateSettlementPage extends ConsumerStatefulWidget {
@@ -122,6 +124,180 @@ class _CreateSettlementPageState extends ConsumerState<CreateSettlementPage> {
     }
   }
 
+  final _fromKey = GlobalKey();
+  final _toKey = GlobalKey();
+
+  void _swapFromTo() {
+    setState(() {
+      final temp = _selectedFromUserId;
+      _selectedFromUserId = _selectedToUserId;
+      _selectedToUserId = temp;
+    });
+  }
+
+  Widget _buildSelector(BuildContext context, {required bool isFrom}) {
+    final theme = Theme.of(context);
+    final key = isFrom ? _fromKey : _toKey;
+    final selectedId = isFrom ? _selectedFromUserId : _selectedToUserId;
+    final selectedMember = widget.members.firstWhere(
+      (m) => m.userId == selectedId,
+      orElse: () => GroupMember(
+        userId: '',
+        name: '',
+        email: '',
+        role: 'MEMBER',
+        status: 'ACTIVE',
+        joinedAt: DateTime.now(),
+      ),
+    );
+    final hasSelection = selectedId != null && selectedMember.userId.isNotEmpty;
+
+    return InkWell(
+      key: key,
+      onTap: () => _showMemberPicker(context, isFrom: isFrom),
+      borderRadius: BorderRadius.circular(12),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: isFrom ? 'Paid By' : 'Paid To',
+          prefixIcon: hasSelection 
+              ? Padding(
+                  padding: const EdgeInsets.all(10.0),
+                  child: MemberAvatar(name: selectedMember.name, radius: 12),
+                )
+              : const Icon(Icons.person_outline),
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        ),
+        child: Text(
+          hasSelection ? selectedMember.name : 'Select member',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: hasSelection ? null : theme.colorScheme.onSurfaceVariant,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+    );
+  }
+
+  void _showMemberPicker(BuildContext context, {required bool isFrom}) async {
+    final theme = Theme.of(context);
+    final isDesktop = ResponsiveLayout.isDesktop(context) || ResponsiveLayout.isTablet(context);
+    
+    final disabledUserId = isFrom ? _selectedToUserId : _selectedFromUserId;
+
+    if (!isDesktop) {
+      // Bottom sheet on Mobile
+      final GroupMember? result = await showModalBottomSheet<GroupMember>(
+        context: context,
+        backgroundColor: theme.colorScheme.surfaceContainer,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (context) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                  child: Text(
+                    isFrom ? 'Who paid?' : 'Paid to?',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const Divider(),
+                Flexible(
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: widget.members.length,
+                    itemBuilder: (context, index) {
+                      final member = widget.members[index];
+                      final isDisabled = member.userId == disabledUserId;
+                      
+                      return ListTile(
+                        leading: MemberAvatar(name: member.name, radius: 14),
+                        title: Text(
+                          member.name,
+                          style: TextStyle(
+                            color: isDisabled ? theme.colorScheme.onSurface.withValues(alpha: 0.38) : null,
+                            fontWeight: isDisabled ? FontWeight.normal : FontWeight.bold,
+                          ),
+                        ),
+                        enabled: !isDisabled,
+                        onTap: () => Navigator.pop(context, member),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      if (result != null) {
+        setState(() {
+          if (isFrom) {
+            _selectedFromUserId = result.userId;
+          } else {
+            _selectedToUserId = result.userId;
+          }
+        });
+      }
+    } else {
+      // Popover menu on Desktop / Tablet
+      final key = isFrom ? _fromKey : _toKey;
+      final RenderBox? renderBox = key.currentContext?.findRenderObject() as RenderBox?;
+      if (renderBox == null) return;
+      
+      final offset = renderBox.localToGlobal(Offset.zero);
+      final size = renderBox.size;
+      
+      final RelativeRect position = RelativeRect.fromRect(
+        Rect.fromLTWH(offset.dx, offset.dy + size.height, size.width, 0),
+        Offset.zero & MediaQuery.of(context).size,
+      );
+
+      final GroupMember? result = await showMenu<GroupMember>(
+        context: context,
+        position: position,
+        items: widget.members.map((member) {
+          final isDisabled = member.userId == disabledUserId;
+          return PopupMenuItem<GroupMember>(
+            value: member,
+            enabled: !isDisabled,
+            child: Row(
+              children: [
+                MemberAvatar(name: member.name, radius: 12),
+                const SizedBox(width: 8),
+                Text(
+                  member.name,
+                  style: TextStyle(
+                    color: isDisabled ? theme.colorScheme.onSurface.withValues(alpha: 0.38) : null,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      );
+
+      if (result != null) {
+        setState(() {
+          if (isFrom) {
+            _selectedFromUserId = result.userId;
+          } else {
+            _selectedToUserId = result.userId;
+          }
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final defaultCurrency = ref.watch(defaultCurrencyProvider);
@@ -166,90 +342,65 @@ class _CreateSettlementPageState extends ConsumerState<CreateSettlementPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Section 1: Who paid?
-              Text(
-                'Who paid?',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: widget.members.map((member) {
-                    final isSelected = member.userId == _selectedFromUserId;
-                    final firstName = member.name.split(' ').first;
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isWide = constraints.maxWidth >= 500;
 
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(
-                          firstName,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected
-                                ? theme.colorScheme.onPrimaryContainer
-                                : theme.colorScheme.onSurfaceVariant,
+                  final fromWidget = isWide
+                      ? Expanded(child: _buildSelector(context, isFrom: true))
+                      : _buildSelector(context, isFrom: true);
+
+                  final toWidget = isWide
+                      ? Expanded(child: _buildSelector(context, isFrom: false))
+                      : _buildSelector(context, isFrom: false);
+
+                  final swapButton = Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: _swapFromTo,
+                      borderRadius: BorderRadius.circular(24),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer.withValues(alpha: 0.15),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.primary.withValues(alpha: 0.3),
                           ),
                         ),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedFromUserId = member.userId;
-                            if (_selectedFromUserId == _selectedToUserId) {
-                              _selectedToUserId = null;
-                            }
-                          });
-                        },
-                        selectedColor: theme.colorScheme.primaryContainer,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        showCheckmark: false,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Section 2: Paid to?
-              Text(
-                'Paid to?',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: widget.members
-                      .where((m) => m.userId != _selectedFromUserId)
-                      .map((member) {
-                    final isSelected = member.userId == _selectedToUserId;
-                    final firstName = member.name.split(' ').first;
-
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8.0),
-                      child: ChoiceChip(
-                        label: Text(
-                          firstName,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                            color: isSelected
-                                ? theme.colorScheme.onPrimaryContainer
-                                : theme.colorScheme.onSurfaceVariant,
-                          ),
+                        child: Icon(
+                          isWide ? Icons.swap_horiz_rounded : Icons.swap_vert_rounded,
+                          color: theme.colorScheme.primary,
                         ),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedToUserId = member.userId;
-                          });
-                        },
-                        selectedColor: theme.colorScheme.primaryContainer,
-                        backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                        showCheckmark: false,
                       ),
+                    ),
+                  );
+
+                  if (isWide) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        fromWidget,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: swapButton,
+                        ),
+                        toWidget,
+                      ],
                     );
-                  }).toList(),
-                ),
+                  } else {
+                    return Column(
+                      children: [
+                        fromWidget,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: swapButton,
+                        ),
+                        toWidget,
+                      ],
+                    );
+                  }
+                },
               ),
               const SizedBox(height: 20),
 

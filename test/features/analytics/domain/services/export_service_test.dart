@@ -80,34 +80,37 @@ void main() {
   group('generateGroupSummary', () {
     final analytics = GroupAnalytics(
       groupId: 'group-1',
+      groupName: 'Test Group',
       currency: 'INR',
       totalExpenses: 9000.0,
+      totalExpenseCount: 2,
       totalSettled: 1000.0,
-      activeExpenseCount: 2,
-      reversedExpenseCount: 1,
+      averageExpenseAmount: 4500.0,
+      largestExpense: 6000.0,
+      largestExpenseTitle: 'Dinner',
+      topSpenderName: 'Mandeep',
+      settlementRate: 0.5,
       memberContributions: const [
         MemberContribution(
           userId: 'u1',
           name: 'Mandeep',
           totalPaid: 3000.0,
           totalOwed: 2000.0,
+          netBalance: 1000.0,
           expenseCount: 1,
+          percentageOfTotal: 0.33,
         ),
       ],
       monthlySpending: const [
         MonthlySpending(
           year: 2026,
           month: 1,
+          monthLabel: 'Jan',
           totalAmount: 3000.0,
           expenseCount: 1,
           currency: 'INR',
         ),
       ],
-      averageExpenseAmount: 4500.0,
-      largestExpense: 6000.0,
-      smallestExpense: 3000.0,
-      dateRangeStart: DateTime(2026, 1, 15),
-      dateRangeEnd: DateTime(2026, 2, 10),
     );
 
     test('contains group name', () {
@@ -167,34 +170,37 @@ void main() {
     test('USD symbol is \$', () {
       final usdAnalytics = GroupAnalytics(
         groupId: 'group-1',
+        groupName: 'G',
         currency: 'USD',
         totalExpenses: 9000.0,
+        totalExpenseCount: 2,
         totalSettled: 1000.0,
-        activeExpenseCount: 2,
-        reversedExpenseCount: 1,
+        averageExpenseAmount: 4500.0,
+        largestExpense: 6000.0,
+        largestExpenseTitle: 'Dinner',
+        topSpenderName: 'Mandeep',
+        settlementRate: 0.5,
         memberContributions: const [
           MemberContribution(
             userId: 'u1',
             name: 'Mandeep',
             totalPaid: 3000.0,
             totalOwed: 2000.0,
+            netBalance: 1000.0,
             expenseCount: 1,
+            percentageOfTotal: 0.33,
           ),
         ],
         monthlySpending: const [
           MonthlySpending(
             year: 2026,
             month: 1,
+            monthLabel: 'Jan',
             totalAmount: 3000.0,
             expenseCount: 1,
             currency: 'USD',
           ),
         ],
-        averageExpenseAmount: 4500.0,
-        largestExpense: 6000.0,
-        smallestExpense: 3000.0,
-        dateRangeStart: DateTime(2026, 1, 15),
-        dateRangeEnd: DateTime(2026, 2, 10),
       );
 
       final usdResult = service.generateGroupSummary(

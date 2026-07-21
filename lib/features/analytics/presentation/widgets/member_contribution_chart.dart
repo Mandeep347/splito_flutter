@@ -72,9 +72,7 @@ class MemberContributionChart extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     LinearProgressIndicator(
-                      value: totalAmount > 0
-                          ? (c.totalPaid / totalAmount).clamp(0.0, 1.0)
-                          : 0.0,
+                      value: (c.percentageOfTotal / 100.0).clamp(0.0, 1.0),
                       backgroundColor: theme.colorScheme.surfaceContainerHighest,
                       valueColor: AlwaysStoppedAnimation(theme.colorScheme.primary),
                       borderRadius: BorderRadius.circular(4),
@@ -85,9 +83,7 @@ class MemberContributionChart extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Text(
-                totalAmount > 0
-                    ? '${(c.totalPaid / totalAmount * 100).toStringAsFixed(0)}%'
-                    : '0%',
+                '${c.percentageOfTotal.toStringAsFixed(0)}%',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),

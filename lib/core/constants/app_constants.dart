@@ -27,6 +27,18 @@ class ApiEndpoints {
   /// Endpoint to refresh a expired authentication access token.
   static const String refresh = '/auth/refresh';
 
+  /// Endpoint to verify user email address.
+  static const String verifyEmail = '/auth/verify-email';
+
+  /// Endpoint to resend user email verification.
+  static const String resendVerification = '/auth/resend-verification';
+
+  /// Endpoint to trigger forgot password flow.
+  static const String forgotPassword = '/auth/forgot-password';
+
+  /// Endpoint to reset password using code/token.
+  static const String resetPassword = '/auth/reset-password';
+
   /// Endpoint to get or update the current user profile.
   static const String usersMe = '/users/me';
 

@@ -8,6 +8,10 @@ import 'package:splito_flutter/features/auth/domain/usecases/get_me_usecase.dart
 import 'package:splito_flutter/features/auth/domain/usecases/login_usecase.dart';
 import 'package:splito_flutter/features/auth/domain/usecases/logout_usecase.dart';
 import 'package:splito_flutter/features/auth/domain/usecases/register_usecase.dart';
+import 'package:splito_flutter/features/auth/domain/usecases/verify_email_usecase.dart';
+import 'package:splito_flutter/features/auth/domain/usecases/resend_verification_usecase.dart';
+import 'package:splito_flutter/features/auth/domain/usecases/forgot_password_usecase.dart';
+import 'package:splito_flutter/features/auth/domain/usecases/reset_password_usecase.dart';
 import 'package:splito_flutter/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:splito_flutter/features/balances/presentation/providers/balance_providers.dart';
 import 'package:splito_flutter/features/groups/presentation/providers/group_providers.dart';
@@ -57,6 +61,30 @@ final logoutUseCaseProvider = Provider<LogoutUseCase>((ref) {
 final getMeUseCaseProvider = Provider<GetMeUseCase>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return GetMeUseCase(repository: repository);
+});
+
+/// Provider for [VerifyEmailUseCase].
+final verifyEmailUseCaseProvider = Provider<VerifyEmailUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return VerifyEmailUseCase(repository: repository);
+});
+
+/// Provider for [ResendVerificationUseCase].
+final resendVerificationUseCaseProvider = Provider<ResendVerificationUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return ResendVerificationUseCase(repository: repository);
+});
+
+/// Provider for [ForgotPasswordUseCase].
+final forgotPasswordUseCaseProvider = Provider<ForgotPasswordUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return ForgotPasswordUseCase(repository: repository);
+});
+
+/// Provider for [ResetPasswordUseCase].
+final resetPasswordUseCaseProvider = Provider<ResetPasswordUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return ResetPasswordUseCase(repository: repository);
 });
 
 /// Notifier governing the current user session lifecycle state.
@@ -117,8 +145,9 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
       // to AuthStateUnauthenticated on its own — no duplicate
       // getMe call here that could falsely report login failure.
       ref.invalidateSelf();
-    } on AuthFailure {
-      state = const AsyncValue.data(AuthStateUnauthenticated());
+    } on AuthFailure catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      rethrow;
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
       rethrow;
@@ -134,13 +163,65 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     state = const AsyncLoading<AuthState>();
     try {
       final registerUseCase = ref.read(registerUseCaseProvider);
-      final user = await registerUseCase(
+      await registerUseCase(
         name: name,
         email: email,
         password: password,
       );
 
-      state = AsyncValue.data(AuthStateAuthenticated(user: user));
+      state = const AsyncValue.data(AuthStateUnauthenticated());
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
+  /// Verifies email address using the deep link token.
+  Future<void> verifyEmail({required String token}) async {
+    state = const AsyncLoading<AuthState>();
+    try {
+      final verifyEmailUseCase = ref.read(verifyEmailUseCaseProvider);
+      await verifyEmailUseCase(token: token);
+      state = const AsyncValue.data(AuthStateUnauthenticated());
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
+  /// Requests to resend verification email.
+  Future<void> resendVerification({required String email}) async {
+    state = const AsyncLoading<AuthState>();
+    try {
+      final resendVerificationUseCase = ref.read(resendVerificationUseCaseProvider);
+      await resendVerificationUseCase(email: email);
+      state = const AsyncValue.data(AuthStateUnauthenticated());
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
+  /// Initiates password recovery process.
+  Future<void> forgotPassword({required String email}) async {
+    state = const AsyncLoading<AuthState>();
+    try {
+      final forgotPasswordUseCase = ref.read(forgotPasswordUseCaseProvider);
+      await forgotPasswordUseCase(email: email);
+      state = const AsyncValue.data(AuthStateUnauthenticated());
+    } catch (e, stack) {
+      state = AsyncValue.error(e, stack);
+      rethrow;
+    }
+  }
+
+  /// Completes password reset with new password.
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    state = const AsyncLoading<AuthState>();
+    try {
+      final resetPasswordUseCase = ref.read(resetPasswordUseCaseProvider);
+      await resetPasswordUseCase(token: token, newPassword: newPassword);
+      state = const AsyncValue.data(AuthStateUnauthenticated());
     } catch (e, stack) {
       state = AsyncValue.error(e, stack);
       rethrow;

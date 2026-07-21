@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:splito_flutter/core/responsive/responsive_layout.dart';
 import 'package:splito_flutter/shared/widgets/async_value_widget.dart';
 import 'package:splito_flutter/shared/widgets/empty_state_widget.dart';
 import 'package:splito_flutter/shared/widgets/primary_button.dart';
@@ -13,6 +14,8 @@ import 'package:splito_flutter/features/analytics/presentation/widgets/analytics
 import 'package:splito_flutter/features/analytics/presentation/widgets/top_payer_badge.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:splito_flutter/features/analytics/domain/services/export_service.dart';
+import 'package:splito_flutter/features/analytics/presentation/widgets/settlement_progress_bar.dart';
+import 'package:splito_flutter/features/analytics/domain/utils/analytics_utils.dart';
 
 /// Screen presenting client-side visual statistics and charts for a group's expenses.
 class GroupAnalyticsPage extends ConsumerWidget {
@@ -114,154 +117,171 @@ class GroupAnalyticsPage extends ConsumerWidget {
             onRefresh: () async {
               ref.invalidate(groupAnalyticsProvider(groupId));
               ref.invalidate(groupExpensesProvider(groupId));
-              try {
-                await ref.read(groupAnalyticsProvider(groupId).future);
-              } catch (_) {}
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!analytics.hasData)
-                    const EmptyStateWidget(
+              child: !analytics.hasData
+                  ? const EmptyStateWidget(
                       icon: Icons.bar_chart_outlined,
                       title: 'No analytics yet',
                       subtitle: 'Add expenses to see spending insights for this group.',
                     )
-                  else ...[
-                    // Section 1 — Overview
-                    AnalyticsSummaryCard(
-                      analytics: analytics,
-                      currency: currency,
-                    ),
-                    const SizedBox(height: 16),
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth > 720;
 
-                    // Section 2 — Top payer
-                    if (analytics.topPayer != null) ...[
-                      TopPayerBadge(
-                        contribution: analytics.topPayer!,
-                        currency: currency,
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Section 3 — Monthly spending
-                    const _SectionHeader(title: 'Monthly Spending'),
-                    Card(
-                      margin: EdgeInsets.zero,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: MonthlySpendingChart(
-                          monthlyData: analytics.monthlySpending,
-                          currency: currency,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Section 4 — Who Paid Most
-                    const _SectionHeader(title: 'Who Paid Most'),
-                    Card(
-                      margin: EdgeInsets.zero,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: MemberContributionChart(
-                          contributions: analytics.memberContributions,
-                          totalAmount: analytics.totalExpenses,
-                          currency: currency,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Section 5 — Settlement rate
-                    const _SectionHeader(title: 'Settlement Progress'),
-                    Card(
-                      margin: EdgeInsets.zero,
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Settled',
-                                  style: theme.textTheme.bodyMedium,
-                                ),
-                                Text(
-                                  '${(analytics.settlementRate * 100).toStringAsFixed(0)}%',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
+                        Widget leftColumn() {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              AnalyticsSummaryCard(
+                                analytics: analytics,
+                                currency: currency,
+                              ),
+                              const SizedBox(height: 16),
+                              const _SectionHeader(title: 'Monthly Spending'),
+                              Card(
+                                margin: EdgeInsets.zero,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: MonthlySpendingChart(
+                                    monthlyData: fillMissingMonths(analytics.monthlySpending),
+                                    currency: currency,
                                   ),
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            LinearProgressIndicator(
-                              value: analytics.settlementRate,
-                              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                              valueColor: AlwaysStoppedAnimation(Colors.green.shade600),
-                              borderRadius: BorderRadius.circular(6),
-                              minHeight: 10,
-                            ),
-                            const SizedBox(height: 12),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Total Expenses',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    AmountDisplay(
-                                      amount: analytics.totalExpenses,
-                                      currency: currency,
-                                      style: theme.textTheme.titleSmall?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
+                              ),
+                              const SizedBox(height: 16),
+                              const _SectionHeader(title: 'Who Paid Most'),
+                              Card(
+                                margin: EdgeInsets.zero,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: MemberContributionChart(
+                                    contributions: analytics.memberContributions,
+                                    totalAmount: analytics.totalExpenses,
+                                    currency: currency,
+                                  ),
                                 ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      'Total Settled',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 2),
-                                    AmountDisplay(
-                                      amount: analytics.totalSettled,
-                                      currency: currency,
-                                      style: theme.textTheme.titleSmall?.copyWith(
-                                        color: Colors.green.shade600,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
+                              ),
+                            ],
+                          );
+                        }
+
+                        Widget rightColumn() {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (analytics.topPayer != null) ...[
+                                TopPayerBadge(
+                                  contribution: analytics.topPayer!,
+                                  currency: currency,
                                 ),
+                                const SizedBox(height: 16),
                               ],
-                            ),
-                          ],
-                        ),
-                      ),
+                              const _SectionHeader(title: 'Settlement Progress'),
+                              Card(
+                                margin: EdgeInsets.zero,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'Settled',
+                                            style: theme.textTheme.bodyMedium,
+                                          ),
+                                          Text(
+                                            '${(analytics.settlementRate * 100).toStringAsFixed(0)}%',
+                                            style: theme.textTheme.titleMedium?.copyWith(
+                                              color: theme.colorScheme.primary,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: 8),
+                                      SettlementProgressBar(
+                                        value: analytics.settlementRate,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'Total Expenses',
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: theme.colorScheme.onSurfaceVariant,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              AmountDisplay(
+                                                amount: analytics.totalExpenses,
+                                                currency: currency,
+                                                style: theme.textTheme.titleSmall?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Column(
+                                            crossAxisAlignment: CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                'Total Settled',
+                                                style: theme.textTheme.bodySmall?.copyWith(
+                                                  color: theme.colorScheme.onSurfaceVariant,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              AmountDisplay(
+                                                amount: analytics.totalSettled,
+                                                currency: currency,
+                                                style: theme.textTheme.titleSmall?.copyWith(
+                                                  color: Colors.green.shade600,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }
+
+                        if (isWide) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 3, child: leftColumn()),
+                              const SizedBox(width: 16),
+                              Expanded(flex: 2, child: rightColumn()),
+                            ],
+                          );
+                        } else {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              leftColumn(),
+                              const SizedBox(height: 16),
+                              rightColumn(),
+                              const SizedBox(height: 80),
+                            ],
+                          );
+                        }
+                      },
                     ),
-                  ],
-                  const SizedBox(height: 80),
-                ],
-              ),
             ),
           );
         },

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:splito_flutter/features/analytics/domain/entities/group_analytics.dart';
 import 'package:splito_flutter/shared/widgets/amount_display.dart';
 
@@ -17,8 +16,6 @@ class AnalyticsSummaryCard extends StatelessWidget {
     required this.analytics,
     required this.currency,
   });
-
-  String _fmt(DateTime date) => DateFormat('d MMM').format(date);
 
   @override
   Widget build(BuildContext context) {
@@ -40,64 +37,91 @@ class AnalyticsSummaryCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                if (analytics.dateRangeStart != null && analytics.dateRangeEnd != null)
-                  Text(
-                    '${_fmt(analytics.dateRangeStart!)} – ${_fmt(analytics.dateRangeEnd!)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
               ],
             ),
             const SizedBox(height: 16),
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              childAspectRatio: 2.2,
-              mainAxisSpacing: 12,
-              crossAxisSpacing: 12,
-              children: [
-                _StatCell(
-                  label: 'Total Spent',
-                  child: AmountDisplay(
-                    amount: analytics.totalExpenses,
-                    currency: currency,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final useRow = constraints.maxWidth > 550;
+
+                final cells = [
+                  _StatCell(
+                    label: 'Total Spent',
+                    child: AmountDisplay(
+                      amount: analytics.totalExpenses,
+                      currency: currency,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                _StatCell(
-                  label: 'Avg Expense',
-                  child: AmountDisplay(
-                    amount: analytics.averageExpenseAmount,
-                    currency: currency,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  _StatCell(
+                    label: 'Avg Expense',
+                    child: AmountDisplay(
+                      amount: analytics.averageExpenseAmount,
+                      currency: currency,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                _StatCell(
-                  label: 'Expenses',
-                  child: Text(
-                    '${analytics.activeExpenseCount}',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  _StatCell(
+                    label: 'Expenses',
+                    child: Text(
+                      '${analytics.totalExpenseCount}',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                ),
-                _StatCell(
-                  label: 'Largest',
-                  child: AmountDisplay(
-                    amount: analytics.largestExpense,
-                    currency: currency,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                  _StatCell(
+                    label: 'Largest',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AmountDisplay(
+                          amount: analytics.largestExpense,
+                          currency: currency,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        if (analytics.largestExpenseTitle != null &&
+                            analytics.largestExpenseTitle!.isNotEmpty)
+                          Text(
+                            analytics.largestExpenseTitle!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
                     ),
                   ),
-                ),
-              ],
+                ];
+
+                if (useRow) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: cells.map((cell) => Expanded(child: cell)).toList(),
+                    ),
+                  );
+                } else {
+                  return GridView.count(
+                    crossAxisCount: 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: 2.0,
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    children: cells,
+                  );
+                }
+              },
             ),
           ],
         ),
@@ -121,7 +145,7 @@ class _StatCell extends StatelessWidget {
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Text(
           label,

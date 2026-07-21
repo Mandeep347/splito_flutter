@@ -41,11 +41,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   Future<void> _submit() async {
     if (_formKey.currentState?.validate() ?? false) {
       try {
+        final email = _emailController.text.trim();
         await ref.read(authNotifierProvider.notifier).register(
               name: _nameController.text.trim(),
-              email: _emailController.text.trim(),
+              email: email,
               password: _passwordController.text,
             );
+        if (mounted) {
+          context.goNamed(
+            AppRoutes.verifyEmailPendingName,
+            extra: email,
+          );
+        }
       } catch (_) {
         // Error is already handled via ref.listen on authNotifierProvider.
       }
@@ -58,11 +65,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     ref.listen<AsyncValue<AuthState>>(
       authNotifierProvider,
       (previous, next) {
-        // Navigate on successful authentication
-        if (next.valueOrNull is AuthStateAuthenticated) {
-          context.goNamed(AppRoutes.groupsName);
-          return;
-        }
         // Show error and clear loading state on failure
         if (next is AsyncError) {
           final error = next.error;
@@ -83,113 +85,110 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     final authAsync = ref.watch(authNotifierProvider);
     final isLoading = authAsync is AsyncLoading;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create Account'),
-      ),
-      body: LoadingOverlay(
-        isLoading: isLoading,
-        child: AuthFormWrapper(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                AppTextField(
-                  controller: _nameController,
-                  labelText: 'Full Name',
-                  hintText: 'John Doe',
-                  textInputAction: TextInputAction.next,
-                  prefixIcon: const Icon(Icons.person_outline),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Name is required';
-                    }
-                    if (value.length > 100) {
-                      return 'Name must be 100 characters or less';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  controller: _emailController,
-                  labelText: 'Email',
-                  hintText: 'name@example.com',
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Email is required';
-                    }
-                    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                    if (!emailRegex.hasMatch(value)) {
-                      return 'Enter a valid email address';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  controller: _passwordController,
-                  labelText: 'Password',
-                  obscureText: _obscurePassword,
-                  textInputAction: TextInputAction.next,
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+    return LoadingOverlay(
+      isLoading: isLoading,
+      child: AuthFormWrapper(
+        title: 'Create Account',
+        subtitle: 'Sign up to start splitting expenses with Splito',
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              AppTextField(
+                controller: _nameController,
+                labelText: 'Full Name',
+                hintText: 'John Doe',
+                textInputAction: TextInputAction.next,
+                prefixIcon: const Icon(Icons.person_outline),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Name is required';
+                  }
+                  if (value.length > 100) {
+                    return 'Name must be 100 characters or less';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              AppTextField(
+                controller: _emailController,
+                labelText: 'Email',
+                hintText: 'name@example.com',
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                prefixIcon: const Icon(Icons.email_outlined),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Email is required';
+                  }
+                  final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
+                  if (!emailRegex.hasMatch(value)) {
+                    return 'Enter a valid email address';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              AppTextField(
+                controller: _passwordController,
+                labelText: 'Password',
+                obscureText: _obscurePassword,
+                textInputAction: TextInputAction.next,
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility_off : Icons.visibility,
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Password is required';
-                    }
-                    if (value.length < 8 || value.length > 128) {
-                      return 'Password must be between 8 and 128 characters';
-                    }
-                    return null;
-                  },
+                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                 ),
-                const SizedBox(height: 16),
-                AppTextField(
-                  controller: _confirmPasswordController,
-                  labelText: 'Confirm Password',
-                  obscureText: _obscureConfirmPassword,
-                  textInputAction: TextInputAction.done,
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
-                    ),
-                    onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Password is required';
+                  }
+                  if (value.length < 8 || value.length > 128) {
+                    return 'Password must be between 8 and 128 characters';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+              AppTextField(
+                controller: _confirmPasswordController,
+                labelText: 'Confirm Password',
+                obscureText: _obscureConfirmPassword,
+                textInputAction: TextInputAction.done,
+                prefixIcon: const Icon(Icons.lock_outline),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
                   ),
-                  onFieldSubmitted: (_) => _submit(),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Confirm password is required';
-                    }
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
-                    return null;
-                  },
+                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
                 ),
-                const SizedBox(height: 24),
-                PrimaryButton(
-                  label: 'Create Account',
-                  isLoading: isLoading,
-                  onPressed: _submit,
-                ),
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => context.goNamed(AppRoutes.loginName),
-                  child: const Text('Already have an account? Sign In'),
-                ),
-              ],
-            ),
+                onFieldSubmitted: (_) => _submit(),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Confirm password is required';
+                  }
+                  if (value != _passwordController.text) {
+                    return 'Passwords do not match';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 24),
+              PrimaryButton(
+                label: 'Create Account',
+                isLoading: isLoading,
+                onPressed: _submit,
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.goNamed(AppRoutes.loginName),
+                child: const Text('Already have an account? Sign In'),
+              ),
+            ],
           ),
         ),
       ),

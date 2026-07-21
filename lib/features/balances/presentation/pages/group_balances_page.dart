@@ -248,7 +248,9 @@ class GroupBalancesPage extends ConsumerWidget {
 
               // Bottom Settle Up button
               SettleUpButton(
-                onPressed: navigateToCreateSettlement,
+                onPressed: (groupBalancesAsync.valueOrNull?.isAllSettled ?? true)
+                    ? null
+                    : navigateToCreateSettlement,
               ),
             ],
           ),

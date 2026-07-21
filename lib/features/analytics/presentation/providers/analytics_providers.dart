@@ -8,25 +8,20 @@ import 'package:splito_flutter/features/settlements/data/repositories/settlement
 import 'package:splito_flutter/features/groups/presentation/providers/group_providers.dart';
 import 'package:splito_flutter/features/analytics/domain/entities/group_analytics.dart';
 import 'package:splito_flutter/features/analytics/domain/entities/member_contribution.dart';
-import 'package:splito_flutter/features/analytics/domain/services/analytics_computation_service.dart';
+import 'package:splito_flutter/features/analytics/domain/entities/user_analytics.dart';
 import 'package:splito_flutter/features/analytics/domain/usecases/compute_group_analytics_usecase.dart';
 import 'package:splito_flutter/features/analytics/domain/usecases/get_expense_search_results_usecase.dart';
+import 'package:splito_flutter/features/analytics/domain/usecases/get_user_analytics_usecase.dart';
+import 'package:splito_flutter/features/analytics/data/repositories/analytics_repository_impl.dart';
 
 // ============================================================================
 // SECTION A — Infrastructure Providers
 // ============================================================================
 
-/// Provider exposing [AnalyticsComputationService].
-final analyticsComputationServiceProvider = Provider<AnalyticsComputationService>((ref) {
-  return const AnalyticsComputationService();
-});
-
 /// Provider exposing [ComputeGroupAnalyticsUseCase].
 final computeGroupAnalyticsUseCaseProvider = Provider<ComputeGroupAnalyticsUseCase>((ref) {
   return ComputeGroupAnalyticsUseCase(
-    expenseRepository: ref.watch(expenseRepositoryProvider),
-    settlementRepository: ref.watch(settlementRepositoryProvider),
-    computationService: ref.watch(analyticsComputationServiceProvider),
+    repository: ref.watch(analyticsRepositoryProvider),
   );
 });
 
@@ -37,11 +32,18 @@ final getExpenseSearchResultsUseCaseProvider = Provider<GetExpenseSearchResultsU
   );
 });
 
+/// Provider exposing [GetUserAnalyticsUseCase].
+final getUserAnalyticsUseCaseProvider = Provider<GetUserAnalyticsUseCase>((ref) {
+  return GetUserAnalyticsUseCase(
+    repository: ref.watch(analyticsRepositoryProvider),
+  );
+});
+
 // ============================================================================
-// SECTION B — Group Analytics Notifier
+// SECTION B — Group Analytics Notifier & User Analytics Notifier
 // ============================================================================
 
-/// Notifier managing group analytics state calculations.
+/// Notifier managing group analytics state.
 class GroupAnalyticsNotifier extends FamilyAsyncNotifier<GroupAnalytics, String> {
   @override
   FutureOr<GroupAnalytics> build(String groupId) {
@@ -49,18 +51,16 @@ class GroupAnalyticsNotifier extends FamilyAsyncNotifier<GroupAnalytics, String>
     if (!isAuthenticated) {
       return GroupAnalytics(
         groupId: groupId,
+        groupName: '',
         currency: 'INR',
         totalExpenses: 0.0,
+        totalExpenseCount: 0,
         totalSettled: 0.0,
-        activeExpenseCount: 0,
-        reversedExpenseCount: 0,
-        memberContributions: const [],
-        monthlySpending: const [],
         averageExpenseAmount: 0.0,
         largestExpense: 0.0,
-        smallestExpense: 0.0,
-        dateRangeStart: null,
-        dateRangeEnd: null,
+        settlementRate: 0.0,
+        memberContributions: const [],
+        monthlySpending: const [],
       );
     }
 
@@ -78,10 +78,44 @@ class GroupAnalyticsNotifier extends FamilyAsyncNotifier<GroupAnalytics, String>
   }
 }
 
-/// Provider family exposing computed analytics for a specific group.
+/// Provider family exposing remote analytics for a specific group.
 final groupAnalyticsProvider =
     AsyncNotifierProvider.family<GroupAnalyticsNotifier, GroupAnalytics, String>(() {
   return GroupAnalyticsNotifier();
+});
+
+/// Notifier managing personal analytics state.
+class UserAnalyticsNotifier extends AsyncNotifier<UserAnalytics> {
+  @override
+  FutureOr<UserAnalytics> build() {
+    final isAuthenticated = ref.watch(authStateProvider);
+    if (!isAuthenticated) {
+      return const UserAnalytics(
+        userId: '',
+        userName: '',
+        totalPaidAllGroups: 0.0,
+        totalOwedToOthers: 0.0,
+        totalOthersOweUser: 0.0,
+        netBalance: 0.0,
+        totalGroupsCount: 0,
+        totalExpenseCount: 0,
+        groups: [],
+        monthlySpending: [],
+      );
+    }
+
+    final useCase = ref.watch(getUserAnalyticsUseCaseProvider);
+    return useCase();
+  }
+
+  void refresh() {
+    ref.invalidateSelf();
+  }
+}
+
+/// Provider exposing personal cross-group analytics.
+final userAnalyticsProvider = AsyncNotifierProvider<UserAnalyticsNotifier, UserAnalytics>(() {
+  return UserAnalyticsNotifier();
 });
 
 // ============================================================================

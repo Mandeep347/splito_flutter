@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:splito_flutter/core/router/route_names.dart';
 import 'package:splito_flutter/features/auth/presentation/pages/login_page.dart';
 import 'package:splito_flutter/features/auth/presentation/pages/register_page.dart';
+import 'package:splito_flutter/features/auth/presentation/pages/email_verification_pending_page.dart';
+import 'package:splito_flutter/features/auth/presentation/pages/verify_email_landing_page.dart';
+import 'package:splito_flutter/features/auth/presentation/pages/forgot_password_page.dart';
+import 'package:splito_flutter/features/auth/presentation/pages/reset_password_landing_page.dart';
 import 'package:splito_flutter/features/auth/presentation/providers/auth_provider.dart';
 import 'package:splito_flutter/features/groups/presentation/pages/group_details_page.dart';
 import 'package:splito_flutter/features/groups/presentation/pages/group_list_page.dart';
@@ -20,10 +24,19 @@ import 'package:splito_flutter/features/activity/presentation/pages/activity_fee
 import 'package:splito_flutter/features/notifications/presentation/pages/notifications_page.dart';
 import 'package:splito_flutter/features/settings/presentation/pages/settings_page.dart';
 import 'package:splito_flutter/features/analytics/presentation/pages/group_analytics_page.dart';
+import 'package:splito_flutter/features/dashboard/presentation/pages/dashboard_page.dart';
+import 'package:splito_flutter/features/expenses/presentation/pages/global_expenses_page.dart';
+import 'package:splito_flutter/features/activity/presentation/pages/global_activity_page.dart';
+import 'package:splito_flutter/features/analytics/presentation/pages/global_statistics_page.dart';
+import 'package:splito_flutter/features/navigation/presentation/widgets/responsive_navigation_shell.dart';
 
 /// Global navigator keys for context access.
 final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final dashboardTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'dashboardTab');
 final groupsTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'groupsTab');
+final expensesTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'expensesTab');
+final activityTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'activityTab');
+final statisticsTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'statisticsTab');
 final profileTabNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'profileTab');
 
 /// Notifier that triggers GoRouter refreshes on Riverpod provider updates.
@@ -54,7 +67,7 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   // Changed: Removed ref.watch(authNotifierProvider) from provider body to prevent router rebuilds. Auth state is instead retrieved via ref.read inside the redirect callback.
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: AppRoutes.groupsPath,
+    initialLocation: AppRoutes.dashboardPath,
     refreshListenable: notifier,
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
@@ -63,18 +76,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // If authNotifierProvider is loading → return null (stay on current)
       if (authState.isLoading) return null;
 
-      final isLoggingIn = state.matchedLocation == AppRoutes.loginPath;
-      final isRegistering = state.matchedLocation == AppRoutes.registerPath;
+      final isAuthRoute = state.matchedLocation == AppRoutes.loginPath ||
+          state.matchedLocation == AppRoutes.registerPath ||
+          state.matchedLocation == AppRoutes.verifyEmailPendingPath ||
+          state.matchedLocation == AppRoutes.verifyEmailPath ||
+          state.matchedLocation == AppRoutes.forgotPasswordPath ||
+          state.matchedLocation == AppRoutes.resetPasswordPath;
 
       // Unauthenticated users are redirected to login page
       if (!isAuthenticated) {
-        if (isLoggingIn || isRegistering) return null;
+        if (isAuthRoute) return null;
         return AppRoutes.loginPath;
       }
 
       // Authenticated users are redirected away from auth pages to main dashboard
-      if (isLoggingIn || isRegistering) {
-        return AppRoutes.groupsPath;
+      if (isAuthRoute) {
+        return AppRoutes.dashboardPath;
       }
 
       return null;
@@ -95,6 +112,39 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         parentNavigatorKey: rootNavigatorKey,
+        name: AppRoutes.verifyEmailPendingName,
+        path: AppRoutes.verifyEmailPendingPath,
+        builder: (context, state) {
+          final email = state.extra as String? ?? '';
+          return EmailVerificationPendingPage(email: email);
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoutes.verifyEmailName,
+        path: AppRoutes.verifyEmailPath,
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          return VerifyEmailLandingPage(token: token);
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoutes.forgotPasswordName,
+        path: AppRoutes.forgotPasswordPath,
+        builder: (context, state) => const ForgotPasswordPage(),
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
+        name: AppRoutes.resetPasswordName,
+        path: AppRoutes.resetPasswordPath,
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'] ?? '';
+          return ResetPasswordLandingPage(token: token);
+        },
+      ),
+      GoRoute(
+        parentNavigatorKey: rootNavigatorKey,
         name: AppRoutes.notificationsName,
         path: AppRoutes.notificationsPath,
         builder: (context, state) => const NotificationsPage(),
@@ -109,10 +159,22 @@ final goRouterProvider = Provider<GoRouter>((ref) {
       // Main Dashboard Shell (Stateful Nested Navigation)
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
-          return ScaffoldWithNestedNavigation(navigationShell: navigationShell);
+          return ResponsiveNavigationShell(navigationShell: navigationShell);
         },
         branches: [
-          // Groups Branch
+          // Dashboard Branch (0)
+          StatefulShellBranch(
+            navigatorKey: dashboardTabNavigatorKey,
+            routes: [
+              GoRoute(
+                name: AppRoutes.dashboardName,
+                path: AppRoutes.dashboardPath,
+                builder: (context, state) => const DashboardPage(),
+              ),
+            ],
+          ),
+
+          // Groups Branch (1)
           StatefulShellBranch(
             navigatorKey: groupsTabNavigatorKey,
             routes: [
@@ -261,7 +323,43 @@ final goRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // Profile Branch
+          // Expenses Branch (2)
+          StatefulShellBranch(
+            navigatorKey: expensesTabNavigatorKey,
+            routes: [
+              GoRoute(
+                name: AppRoutes.globalExpensesName,
+                path: AppRoutes.globalExpensesPath,
+                builder: (context, state) => const GlobalExpensesPage(),
+              ),
+            ],
+          ),
+
+          // Activity Branch (3)
+          StatefulShellBranch(
+            navigatorKey: activityTabNavigatorKey,
+            routes: [
+              GoRoute(
+                name: AppRoutes.globalActivityName,
+                path: AppRoutes.globalActivityPath,
+                builder: (context, state) => const GlobalActivityPage(),
+              ),
+            ],
+          ),
+
+          // Statistics Branch (4)
+          StatefulShellBranch(
+            navigatorKey: statisticsTabNavigatorKey,
+            routes: [
+              GoRoute(
+                name: AppRoutes.globalStatisticsName,
+                path: AppRoutes.globalStatisticsPath,
+                builder: (context, state) => const GlobalStatisticsPage(),
+              ),
+            ],
+          ),
+
+          // Profile Branch (5)
           StatefulShellBranch(
             navigatorKey: profileTabNavigatorKey,
             routes: [
@@ -277,41 +375,3 @@ final goRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-/// Shared structural layout wrapper for bottom navigation tabs in Splito.
-class ScaffoldWithNestedNavigation extends StatelessWidget {
-  final StatefulNavigationShell navigationShell;
-
-  const ScaffoldWithNestedNavigation({
-    super.key,
-    required this.navigationShell,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.group_outlined),
-            selectedIcon: Icon(Icons.group),
-            label: 'Groups',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        onDestinationSelected: (index) {
-          navigationShell.goBranch(
-            index,
-            initialLocation: index == navigationShell.currentIndex,
-          );
-        },
-      ),
-    );
-  }
-}

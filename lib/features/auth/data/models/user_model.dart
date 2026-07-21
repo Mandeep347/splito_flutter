@@ -16,6 +16,7 @@ class UserModel with _$UserModel {
     required String email,
     @JsonKey(name: 'preferred_currency') required String preferredCurrency,
     @JsonKey(name: 'is_active') required bool isActive,
+    @JsonKey(name: 'is_email_verified', defaultValue: false) required bool isEmailVerified,
   }) = _UserModel;
 
   /// De-serializes JSON map data into a [UserModel] instance.
@@ -29,6 +30,7 @@ class UserModel with _$UserModel {
       name: name,
       email: email,
       preferredCurrency: preferredCurrency,
+      isEmailVerified: isEmailVerified,
     );
   }
 }

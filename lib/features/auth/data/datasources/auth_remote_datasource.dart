@@ -32,6 +32,18 @@ abstract interface class IAuthRemoteDatasource {
     String? name,
     String? preferredCurrency,
   });
+
+  /// Calls POST /auth/verify-email with verification token.
+  Future<void> verifyEmail({required String token});
+
+  /// Calls POST /auth/resend-verification with user email.
+  Future<void> resendVerification({required String email});
+
+  /// Calls POST /auth/forgot-password with user email.
+  Future<void> forgotPassword({required String email});
+
+  /// Calls POST /auth/reset-password with reset token and new password.
+  Future<void> resetPassword({required String token, required String newPassword});
 }
 
 /// Remote datasource implementation using [DioClient].
@@ -107,6 +119,41 @@ class AuthRemoteDatasource implements IAuthRemoteDatasource {
       data: data,
     );
     return UserModel.fromJson(response.data!);
+  }
+
+  @override
+  Future<void> verifyEmail({required String token}) async {
+    await _client.post<dynamic>(
+      ApiEndpoints.verifyEmail,
+      data: {'token': token},
+    );
+  }
+
+  @override
+  Future<void> resendVerification({required String email}) async {
+    await _client.post<dynamic>(
+      ApiEndpoints.resendVerification,
+      data: {'email': email},
+    );
+  }
+
+  @override
+  Future<void> forgotPassword({required String email}) async {
+    await _client.post<dynamic>(
+      ApiEndpoints.forgotPassword,
+      data: {'email': email},
+    );
+  }
+
+  @override
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    await _client.post<dynamic>(
+      ApiEndpoints.resetPassword,
+      data: {
+        'token': token,
+        'new_password': newPassword,
+      },
+    );
   }
 }
 

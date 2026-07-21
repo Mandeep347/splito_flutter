@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:splito_flutter/core/errors/failures.dart';
+import 'package:splito_flutter/core/responsive/responsive_layout.dart';
 import 'package:splito_flutter/core/router/route_names.dart';
 import 'package:splito_flutter/core/theme/theme_extensions.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group.dart';
@@ -24,12 +25,9 @@ import 'package:splito_flutter/features/activity/domain/entities/activity_feed.d
 import 'package:splito_flutter/features/analytics/presentation/providers/analytics_providers.dart';
 import 'package:splito_flutter/shared/widgets/amount_display.dart';
 
-/// Screen displaying the details of a single group.
 class GroupDetailsPage extends ConsumerWidget {
-  /// The unique identifier of the group.
   final String groupId;
 
-  /// Creates a const [GroupDetailsPage] instance.
   const GroupDetailsPage({
     super.key,
     required this.groupId,
@@ -39,46 +37,59 @@ class GroupDetailsPage extends ConsumerWidget {
     BuildContext context, {
     required IconData icon,
     required String label,
-    required VoidCallback onTap,
+    required VoidCallback? onTap,
     double? width,
   }) {
     final theme = Theme.of(context);
     final ext = theme.extension<AppThemeExtension>()!;
+    final isDisabled = onTap == null;
 
-    Widget card = Card(
-      margin: EdgeInsets.symmetric(horizontal: ext.spaceXS),
-      elevation: 0,
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: ext.spaceMD),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                color: theme.colorScheme.primary,
-              ),
-              SizedBox(height: ext.spaceXS),
-              Text(
-                label,
-                style: theme.textTheme.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
+    return SizedBox(
+      width: width,
+      child: Card(
+        margin: EdgeInsets.symmetric(horizontal: ext.spaceXS, vertical: ext.spaceXS),
+        elevation: 0,
+        color: isDisabled
+            ? theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.1)
+            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ext.radiusMD),
+          side: BorderSide(
+            color: theme.colorScheme.outlineVariant.withValues(alpha: isDisabled ? 0.1 : 0.3),
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: ext.spaceMD),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  color: isDisabled
+                      ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)
+                      : theme.colorScheme.primary,
+                  size: 20,
                 ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+                SizedBox(height: ext.spaceXS),
+                Text(
+                  label,
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: isDisabled
+                        ? theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.3)
+                        : null,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
-
-    if (width != null) {
-      card = SizedBox(width: width, child: card);
-    }
-    return card;
   }
 
   @override
@@ -87,7 +98,11 @@ class GroupDetailsPage extends ConsumerWidget {
     final ext = theme.extension<AppThemeExtension>()!;
     final detailAsync = ref.watch(groupDetailProvider(groupId));
     final group = detailAsync.valueOrNull;
+    final balancesAsync = ref.watch(groupBalancesProvider(groupId));
+    final isSettled = balancesAsync.hasValue && (balancesAsync.value?.isAllSettled ?? false);
     final currentUser = ref.watch(currentUserProvider);
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+
     final isAdmin = group != null &&
         (group.createdBy == currentUser?.id ||
             group.members.any((m) => m.userId == currentUser?.id && m.isAdmin));
@@ -111,13 +126,543 @@ class GroupDetailsPage extends ConsumerWidget {
       }
     });
 
+    Widget membersCard(Group group) {
+      final shownMembers = group.members.take(6).toList();
+      final extraCount = group.members.length - 6;
+
+      return Card(
+        elevation: 0,
+        child: Padding(
+          padding: EdgeInsets.all(ext.spaceLG),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Members (${group.membersCount})',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async => await AddMemberSheet.show(context, groupId),
+                    child: const Text('+ Add Member'),
+                  ),
+                ],
+              ),
+              SizedBox(height: ext.spaceSM),
+              if (group.members.isEmpty)
+                Text(
+                  'No members yet',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: ext.spaceSM,
+                  runSpacing: ext.spaceSM,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    ...shownMembers.map((m) => MemberAvatar(name: m.name, radius: 18)),
+                    if (extraCount > 0)
+                      Padding(
+                        padding: EdgeInsets.only(left: ext.spaceXS),
+                        child: Text(
+                          '+$extraCount more',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Icon(
+                    Icons.receipt_long_outlined,
+                    size: 14,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 6),
+                  Builder(
+                    builder: (context) {
+                      final totalSpent = ref.watch(groupTotalSpentProvider(groupId));
+                      final symbol = group.defaultCurrency == 'INR'
+                          ? '₹'
+                          : (group.defaultCurrency == 'USD' ? '\$' : '${group.defaultCurrency} ');
+                      final formatter = NumberFormat('#,##0.00');
+                      final formattedTotal = '$symbol${formatter.format(totalSpent)}';
+
+                      return Text(
+                        totalSpent > 0 ? 'Total spent: $formattedTotal' : 'No expenses yet',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget balancesCard(Group group) {
+      return Card(
+        elevation: 0,
+        child: Padding(
+          padding: EdgeInsets.all(ext.spaceLG),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Balances',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: ext.spaceSM),
+              AsyncValueWidget<GroupBalances>(
+                value: ref.watch(groupBalancesProvider(groupId)),
+                loading: () => const SizedBox(
+                  height: 48,
+                  child: Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (groupBalances) {
+                  if (groupBalances.isAllSettled) {
+                    return Row(
+                      children: [
+                        Icon(
+                          Icons.check_circle_outline_rounded,
+                          color: theme.colorScheme.owedColor,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'All settled up!',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  final balances = groupBalances.balances;
+                  final shown = balances.take(3).toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ...shown.map((b) => BalanceRow(
+                            balance: b,
+                            showSettleButton: false,
+                          )),
+                      if (balances.length > 3)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              context.goNamed(
+                                AppRoutes.groupBalancesName,
+                                pathParameters: {'groupId': groupId},
+                                extra: {
+                                  'groupName': group.name,
+                                  'currency': group.defaultCurrency,
+                                },
+                              );
+                            },
+                            child: const Text('See all'),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget recentActivityCard(Group group) {
+      return Card(
+        elevation: 0,
+        child: Padding(
+          padding: EdgeInsets.all(ext.spaceLG),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Recent Activity',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: ext.spaceSM),
+              AsyncValueWidget<ActivityFeed>(
+                value: ref.watch(groupActivityProvider(groupId)),
+                loading: () => const SizedBox(
+                  height: 48,
+                  child: Center(
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                ),
+                error: (_, __) => const SizedBox.shrink(),
+                data: (feed) {
+                  if (feed.items.isEmpty) {
+                    return Text(
+                      'No activity yet',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    );
+                  }
+
+                  final recent = feed.items.take(3).toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ...recent.map((activity) => ActivityListTile(activity: activity)),
+                      if (feed.totalItems > 3)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () {
+                              context.goNamed(
+                                AppRoutes.activityFeedName,
+                                pathParameters: {'groupId': groupId},
+                                extra: {
+                                  'groupName': group.name,
+                                },
+                              );
+                            },
+                            child: const Text('View all'),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget analyticsTeaserCard(Group group) {
+      return ref.watch(groupAnalyticsProvider(group.id)).when(
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+            data: (a) => a.hasData
+                ? Card(
+                    elevation: 0,
+                    child: Padding(
+                      padding: EdgeInsets.all(ext.spaceLG),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Total spent',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              AmountDisplay(
+                                amount: a.totalExpenses,
+                                currency: group.defaultCurrency,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Avg expense',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              AmountDisplay(
+                                amount: a.averageExpenseAmount,
+                                currency: group.defaultCurrency,
+                                style: theme.textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                          TextButton(
+                            onPressed: () => context.goNamed(
+                              AppRoutes.groupAnalyticsName,
+                              pathParameters: {'groupId': group.id},
+                              extra: {
+                                'groupName': group.name,
+                                'currency': group.defaultCurrency,
+                              },
+                            ),
+                            child: const Text('Analytics →'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          );
+    }
+
+    Widget quickActionsRow(Group group, double itemWidth) {
+      return Wrap(
+        children: [
+          _buildActionItem(
+            context,
+            icon: Icons.receipt_long_outlined,
+            label: 'Expenses',
+            width: itemWidth,
+            onTap: () {
+              context.goNamed(
+                AppRoutes.expenseListName,
+                pathParameters: {'groupId': group.id},
+                extra: {'groupName': group.name},
+              );
+            },
+          ),
+          _buildActionItem(
+            context,
+            icon: Icons.account_balance_wallet_outlined,
+            label: 'Balances',
+            width: itemWidth,
+            onTap: () {
+              context.goNamed(
+                AppRoutes.groupBalancesName,
+                pathParameters: {'groupId': group.id},
+                extra: {
+                  'groupName': group.name,
+                  'currency': group.defaultCurrency,
+                },
+              );
+            },
+          ),
+          _buildActionItem(
+            context,
+            icon: Icons.swap_horiz_rounded,
+            label: 'Settle Up',
+            width: itemWidth,
+            onTap: isSettled
+                ? null
+                : () {
+                    context.goNamed(
+                      AppRoutes.createSettlementName,
+                      pathParameters: {'groupId': group.id},
+                      extra: {
+                        'groupName': group.name,
+                        'currency': group.defaultCurrency,
+                        'members': group.members,
+                      },
+                    );
+                  },
+          ),
+          _buildActionItem(
+            context,
+            icon: Icons.history_outlined,
+            label: 'Activity',
+            width: itemWidth,
+            onTap: () {
+              context.goNamed(
+                AppRoutes.activityFeedName,
+                pathParameters: {'groupId': group.id},
+                extra: {
+                  'groupName': group.name,
+                },
+              );
+            },
+          ),
+          _buildActionItem(
+            context,
+            icon: Icons.bar_chart_outlined,
+            label: 'Analytics',
+            width: itemWidth,
+            onTap: () {
+              context.goNamed(
+                AppRoutes.groupAnalyticsName,
+                pathParameters: {'groupId': group.id},
+                extra: {
+                  'groupName': group.name,
+                  'currency': group.defaultCurrency,
+                },
+              );
+            },
+          ),
+        ],
+      );
+    }
+
+    Widget metaInfoCard(Group group) {
+      return Card(
+        elevation: 0,
+        child: Padding(
+          padding: EdgeInsets.all(ext.spaceLG),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Group Info',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: ext.spaceMD),
+              InfoRow(
+                icon: Icons.attach_money_rounded,
+                label: 'Default Currency',
+                value: group.defaultCurrency,
+              ),
+              Divider(height: ext.spaceLG),
+              InfoRow(
+                icon: Icons.calendar_today_rounded,
+                label: 'Created On',
+                value: DateFormat('d MMM yyyy').format(group.createdAt),
+              ),
+              Divider(height: ext.spaceLG),
+              InfoRow(
+                icon: Icons.info_outline_rounded,
+                label: 'Status',
+                value: group.status,
+                valueColor: group.isActive ? theme.colorScheme.primary : theme.colorScheme.error,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    void showEditOptions(Group g) async {
+      final value = await showMenu<String>(
+        context: context,
+        position: const RelativeRect.fromLTRB(100, 80, 0, 0),
+        items: [
+          const PopupMenuItem(
+            value: 'edit',
+            child: Text('Edit Name'),
+          ),
+          if (isAdmin)
+            const PopupMenuItem(
+              value: 'delete',
+              child: Text('Delete Group'),
+            ),
+        ],
+      );
+
+      if (value == 'edit') {
+        if (context.mounted) await EditGroupNameSheet.show(context, g);
+      } else if (value == 'delete') {
+        if (context.mounted) {
+          final confirm = await ConfirmationDialog.show(
+            context,
+            title: 'Delete Group',
+            message: 'Are you sure you want to delete this group?',
+            isDestructive: true,
+          );
+          if (confirm == true) {
+            await ref.read(archiveGroupProvider.notifier).archive(groupId: groupId);
+          }
+        }
+      }
+    }
+
+    if (isDesktop && group != null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(group.name),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.more_vert_rounded),
+              onPressed: () => showEditOptions(group),
+            ),
+          ],
+        ),
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(ext.spaceXL),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left Column (flex 3)
+              Expanded(
+                flex: 3,
+                child: Column(
+                  children: [
+                    membersCard(group),
+                    const SizedBox(height: 16),
+                    balancesCard(group),
+                    const SizedBox(height: 16),
+                    metaInfoCard(group),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Right Column (flex 2)
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    quickActionsRow(group, 140),
+                    const SizedBox(height: 16),
+                    analyticsTeaserCard(group),
+                    const SizedBox(height: 16),
+                    recentActivityCard(group),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        floatingActionButton: FloatingActionButton.extended(
+          icon: const Icon(Icons.add),
+          label: const Text('Add Expense'),
+          onPressed: () => context.goNamed(
+            AppRoutes.createExpenseName,
+            pathParameters: {'groupId': group.id},
+            extra: {
+              'groupName': group.name,
+              'currency': group.defaultCurrency,
+              'members': group.members,
+            },
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       body: AsyncValueWidget<Group>(
         value: detailAsync,
         data: (group) {
-          final shownMembers = group.members.take(6).toList();
-          final extraCount = group.members.length - 6;
-
           return CustomScrollView(
             slivers: [
               SliverAppBar(
@@ -133,45 +678,14 @@ class GroupDetailsPage extends ConsumerWidget {
                   ),
                   background: Container(
                     decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.colorScheme.primary,
-                          theme.colorScheme.primaryContainer,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
+                      gradient: ext.primaryGradient,
                     ),
                   ),
                 ),
                 actions: [
-                  PopupMenuButton<String>(
-                    onSelected: (value) async {
-                      if (value == 'edit') {
-                        await EditGroupNameSheet.show(context, group);
-                      } else if (value == 'delete') {
-                        final confirm = await ConfirmationDialog.show(
-                          context,
-                          title: 'Delete Group',
-                          message: 'Are you sure you want to delete this group?',
-                          isDestructive: true,
-                        );
-                        if (confirm == true) {
-                          await ref.read(archiveGroupProvider.notifier).archive(groupId: groupId);
-                        }
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Text('Edit Name'),
-                      ),
-                      if (isAdmin)
-                        const PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete Group'),
-                        ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.more_vert_rounded),
+                    onPressed: () => showEditOptions(group),
                   ),
                 ],
               ),
@@ -179,460 +693,23 @@ class GroupDetailsPage extends ConsumerWidget {
                 padding: EdgeInsets.all(ext.spaceLG),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    // Members Card
-                    Card(
-                      elevation: 0,
-                      margin: EdgeInsets.only(bottom: ext.spaceLG),
-                      child: InkWell(
-                        onTap: () {
-                          context.goNamed(
-                            AppRoutes.groupMembersName,
-                            pathParameters: {'groupId': group.id},
-                            extra: {'createdBy': group.createdBy},
-                          );
-                        },
-                        child: Padding(
-                          padding: EdgeInsets.all(ext.spaceMD),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    'Members (${group.membersCount})',
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  TextButton(
-                                    onPressed: () async => await AddMemberSheet.show(context, groupId),
-                                    child: const Text('+ Add'),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(height: ext.spaceSM),
-                              if (group.members.isEmpty)
-                                Text(
-                                  'No members yet',
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                )
-                              else
-                                Wrap(
-                                  spacing: ext.spaceSM,
-                                  runSpacing: ext.spaceSM,
-                                  crossAxisAlignment: WrapCrossAlignment.center,
-                                  children: [
-                                    ...shownMembers
-                                        .map((m) => MemberAvatar(name: m.name, radius: 18)),
-                                    if (extraCount > 0)
-                                      Padding(
-                                        padding: EdgeInsets.only(left: ext.spaceXS),
-                                        child: Text(
-                                          '+$extraCount more',
-                                          style: theme.textTheme.bodySmall?.copyWith(
-                                            color: theme.colorScheme.onSurfaceVariant,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.receipt_long_outlined,
-                                    size: 14,
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Builder(
-                                    builder: (context) {
-                                      final totalSpent = ref.watch(groupTotalSpentProvider(groupId));
-                                      final symbol = group.defaultCurrency == 'INR'
-                                          ? '₹'
-                                          : (group.defaultCurrency == 'USD' ? '\$' : '${group.defaultCurrency} ');
-                                      final formatter = NumberFormat('#,##0.00');
-                                      final formattedTotal = '$symbol${formatter.format(totalSpent)}';
-
-                                      return Text(
-                                        totalSpent > 0
-                                            ? 'Total spent: $formattedTotal'
-                                            : 'No expenses yet',
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+                    membersCard(group),
+                    const SizedBox(height: 12),
+                    balancesCard(group),
+                    const SizedBox(height: 12),
+                    recentActivityCard(group),
+                    const SizedBox(height: 12),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final itemWidth = constraints.maxWidth / 3;
+                        return quickActionsRow(group, itemWidth);
+                      },
                     ),
-
-                    // Balances Preview Card
-                    Card(
-                      elevation: 0,
-                      margin: EdgeInsets.only(bottom: ext.spaceLG),
-                      child: Padding(
-                        padding: EdgeInsets.all(ext.spaceMD),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Balances',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: ext.spaceSM),
-                            AsyncValueWidget<GroupBalances>(
-                              value: ref.watch(groupBalancesProvider(groupId)),
-                              loading: () => const SizedBox(
-                                height: 48,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              error: (_, __) => const SizedBox.shrink(),
-                              data: (groupBalances) {
-                                if (groupBalances.isAllSettled) {
-                                  return Row(
-                                    children: [
-                                      Icon(
-                                        Icons.check_circle_outline_rounded,
-                                        color: theme.colorScheme.owedColor,
-                                        size: 20,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Text(
-                                        'All settled up!',
-                                        style: theme.textTheme.bodyMedium?.copyWith(
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                }
-
-                                final balances = groupBalances.balances;
-                                final shown = balances.take(3).toList();
-
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ...shown.map((b) => BalanceRow(
-                                          balance: b,
-                                          showSettleButton: false,
-                                        )),
-                                    if (balances.length > 3)
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton(
-                                          onPressed: () {
-                                            context.goNamed(
-                                              AppRoutes.groupBalancesName,
-                                              pathParameters: {'groupId': groupId},
-                                              extra: {
-                                                'groupName': group.name,
-                                                'currency': group.defaultCurrency,
-                                              },
-                                            );
-                                          },
-                                          child: const Text('See all'),
-                                        ),
-                                      ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Recent Activity Preview Card
-                    Card(
-                      elevation: 0,
-                      margin: EdgeInsets.only(bottom: ext.spaceLG),
-                      child: Padding(
-                        padding: EdgeInsets.all(ext.spaceMD),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Recent Activity',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: ext.spaceSM),
-                            AsyncValueWidget<ActivityFeed>(
-                              value: ref.watch(groupActivityProvider(groupId)),
-                              loading: () => const SizedBox(
-                                height: 48,
-                                child: Center(
-                                  child: SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              error: (_, __) => const SizedBox.shrink(),
-                              data: (feed) {
-                                if (feed.items.isEmpty) {
-                                  return Text(
-                                    'No activity yet',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  );
-                                }
-
-                                final recent = feed.items.take(3).toList();
-
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ...recent.map((activity) => ActivityListTile(
-                                          activity: activity,
-                                        )),
-                                    if (feed.totalItems > 3)
-                                      Align(
-                                        alignment: Alignment.centerRight,
-                                        child: TextButton(
-                                          onPressed: () {
-                                            context.goNamed(
-                                              AppRoutes.activityFeedName,
-                                              pathParameters: {'groupId': groupId},
-                                              extra: {
-                                                'groupName': group.name,
-                                              },
-                                            );
-                                          },
-                                          child: const Text('View all'),
-                                        ),
-                                      ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Quick Actions
-                    Padding(
-                      padding: EdgeInsets.only(bottom: ext.spaceLG),
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final columns = constraints.maxWidth > 600 ? 5 : 3;
-                          final itemWidth = constraints.maxWidth / columns;
-
-                          return Wrap(
-                            runSpacing: ext.spaceSM,
-                            children: [
-                              _buildActionItem(
-                                context,
-                                icon: Icons.receipt_long_outlined,
-                                label: 'Expenses',
-                                width: itemWidth,
-                                onTap: () {
-                                  context.goNamed(
-                                    AppRoutes.expenseListName,
-                                    pathParameters: {'groupId': group.id},
-                                    extra: {'groupName': group.name},
-                                  );
-                                },
-                              ),
-                              _buildActionItem(
-                                context,
-                                icon: Icons.account_balance_wallet_outlined,
-                                label: 'Balances',
-                                width: itemWidth,
-                                onTap: () {
-                                  context.goNamed(
-                                    AppRoutes.groupBalancesName,
-                                    pathParameters: {'groupId': group.id},
-                                    extra: {
-                                      'groupName': group.name,
-                                      'currency': group.defaultCurrency,
-                                    },
-                                  );
-                                },
-                              ),
-                              _buildActionItem(
-                                context,
-                                icon: Icons.swap_horiz_rounded,
-                                label: 'Settle Up',
-                                width: itemWidth,
-                                onTap: () {
-                                  context.goNamed(
-                                    AppRoutes.createSettlementName,
-                                    pathParameters: {'groupId': group.id},
-                                    extra: {
-                                      'groupName': group.name,
-                                      'currency': group.defaultCurrency,
-                                      'members': group.members,
-                                    },
-                                  );
-                                },
-                              ),
-                              _buildActionItem(
-                                context,
-                                icon: Icons.history_outlined,
-                                label: 'Activity',
-                                width: itemWidth,
-                                onTap: () {
-                                  context.goNamed(
-                                    AppRoutes.activityFeedName,
-                                    pathParameters: {'groupId': group.id},
-                                    extra: {
-                                      'groupName': group.name,
-                                    },
-                                  );
-                                },
-                              ),
-                              _buildActionItem(
-                                context,
-                                icon: Icons.bar_chart_outlined,
-                                label: 'Analytics',
-                                width: itemWidth,
-                                onTap: () {
-                                  context.goNamed(
-                                    AppRoutes.groupAnalyticsName,
-                                    pathParameters: {'groupId': group.id},
-                                    extra: {
-                                      'groupName': group.name,
-                                      'currency': group.defaultCurrency,
-                                    },
-                                  );
-                                },
-                              ),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-
-                    // Meta Info Card
-                    Card(
-                      elevation: 0,
-                      child: Padding(
-                        padding: EdgeInsets.all(ext.spaceMD),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Group Info',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: ext.spaceMD),
-                            InfoRow(
-                              icon: Icons.attach_money_rounded,
-                              label: 'Default Currency',
-                              value: group.defaultCurrency,
-                            ),
-                            Divider(height: ext.spaceLG),
-                            InfoRow(
-                              icon: Icons.calendar_today_rounded,
-                              label: 'Created On',
-                              value: DateFormat('d MMM yyyy').format(group.createdAt),
-                            ),
-                            Divider(height: ext.spaceLG),
-                            InfoRow(
-                              icon: Icons.info_outline_rounded,
-                              label: 'Status',
-                              value: group.status,
-                              valueColor: group.isActive
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.error,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    ref.watch(groupAnalyticsProvider(group.id)).when(
-                          loading: () => const SizedBox.shrink(),
-                          error: (_, __) => const SizedBox.shrink(),
-                          data: (a) => a.hasData
-                              ? Card(
-                                  elevation: 0,
-                                  margin: EdgeInsets.only(bottom: ext.spaceLG),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16.0),
-                                    child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Total spent',
-                                              style: theme.textTheme.bodySmall?.copyWith(
-                                                color: theme.colorScheme.onSurfaceVariant,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            AmountDisplay(
-                                              amount: a.totalExpenses,
-                                              currency: group.defaultCurrency,
-                                              style: theme.textTheme.titleMedium,
-                                            ),
-                                          ],
-                                        ),
-                                        Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              'Avg expense',
-                                              style: theme.textTheme.bodySmall?.copyWith(
-                                                color: theme.colorScheme.onSurfaceVariant,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 4),
-                                            AmountDisplay(
-                                              amount: a.averageExpenseAmount,
-                                              currency: group.defaultCurrency,
-                                              style: theme.textTheme.titleMedium,
-                                            ),
-                                          ],
-                                        ),
-                                        TextButton(
-                                          onPressed: () => context.goNamed(
-                                            AppRoutes.groupAnalyticsName,
-                                            pathParameters: {'groupId': group.id},
-                                            extra: {
-                                              'groupName': group.name,
-                                              'currency': group.defaultCurrency,
-                                            },
-                                          ),
-                                          child: const Text('Analytics →'),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                        ),
+                    const SizedBox(height: 12),
+                    analyticsTeaserCard(group),
+                    const SizedBox(height: 12),
+                    metaInfoCard(group),
+                    const SizedBox(height: 80),
                   ]),
                 ),
               ),

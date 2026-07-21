@@ -9,6 +9,14 @@ class AppErrorHandler {
     if (error == null) {
       return 'An unexpected error occurred.';
     }
+    if (error is Failure) {
+      if (error.code == 'EMAIL_NOT_VERIFIED') {
+        return 'Please verify your email address before logging in.';
+      }
+      if (error.code == 'INVALID_TOKEN') {
+        return 'This link has expired or has already been used.';
+      }
+    }
     if (error is AuthFailure) {
       return 'Incorrect email or password.';
     }

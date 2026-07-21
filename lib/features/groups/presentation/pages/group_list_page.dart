@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:splito_flutter/core/errors/failures.dart';
+import 'package:splito_flutter/core/responsive/responsive_layout.dart';
 import 'package:splito_flutter/features/groups/domain/entities/group.dart';
 import 'package:splito_flutter/features/groups/presentation/providers/group_providers.dart';
 import 'package:splito_flutter/features/groups/presentation/widgets/create_group_sheet.dart';
@@ -12,8 +13,9 @@ import 'package:splito_flutter/features/balances/presentation/providers/balance_
 import 'package:splito_flutter/shared/widgets/notification_bell.dart';
 import 'package:splito_flutter/features/notifications/presentation/providers/notification_providers.dart';
 import 'package:splito_flutter/features/expenses/presentation/providers/expense_providers.dart';
+import 'package:splito_flutter/core/theme/theme_extensions.dart';
 
-/// Screen listing all groups the user belongs to.
+/// Redesigned Screen listing all groups in a responsive grid.
 class GroupListPage extends ConsumerWidget {
   /// Creates a const [GroupListPage] instance.
   const GroupListPage({super.key});
@@ -21,7 +23,10 @@ class GroupListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final ext = theme.extension<AppThemeExtension>()!;
     final groupsAsync = ref.watch(myGroupsProvider);
+    final isDesktop = ResponsiveLayout.isDesktop(context);
+    final isTablet = ResponsiveLayout.isTablet(context);
 
     // Listens to create group mutation to show status SnackBars
     ref.listen<AsyncValue<void>>(createGroupProvider, (previous, next) {
@@ -42,16 +47,18 @@ class GroupListPage extends ConsumerWidget {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Groups'),
-        actions: [
-          const NotificationBell(),
-          IconButton(
-            icon: const Icon(Icons.add_rounded),
-            onPressed: () => CreateGroupSheet.show(context),
-          ),
-        ],
-      ),
+      appBar: isDesktop
+          ? null // AppBar is already in the Desktop Sidebar Shell
+          : AppBar(
+              title: const Text('Groups'),
+              actions: [
+                const NotificationBell(),
+                IconButton(
+                  icon: const Icon(Icons.add_rounded),
+                  onPressed: () => CreateGroupSheet.show(context),
+                ),
+              ],
+            ),
       body: AsyncValueWidget<List<Group>>(
         value: groupsAsync,
         data: (groups) {
@@ -88,17 +95,34 @@ class GroupListPage extends ConsumerWidget {
             }
           }
 
-          // Sort unsettled groups by createdAt descending (newest on top)
+          // Sort unsettled groups by createdAt descending
           unsettledGroups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          settledGroups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+          final crossAxisCount = isDesktop ? 3 : (isTablet ? 2 : 1);
+
+          Widget groupsGrid(List<Group> list) {
+            return SliverGrid(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossAxisCount,
+                mainAxisExtent: 116,
+                crossAxisSpacing: ext.spaceSM,
+                mainAxisSpacing: ext.spaceSM,
+              ),
+              delegate: SliverChildBuilderDelegate(
+                (context, index) {
+                  return GroupCard(group: list[index]);
+                },
+                childCount: list.length,
+              ),
+            );
+          }
 
           return RefreshIndicator(
             onRefresh: () async {
               ref.invalidate(myGroupsProvider);
               ref.invalidate(myOverallBalancesProvider);
               ref.invalidate(unreadCountProvider);
-              // Analytics is derived from expenses — invalidating
-              // groupExpensesProvider causes analytics to recompute
-              // automatically. No explicit analytics invalidation needed.
               try {
                 await ref.read(myGroupsProvider.future);
                 await ref.read(myOverallBalancesProvider.future);
@@ -108,22 +132,41 @@ class GroupListPage extends ConsumerWidget {
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                const SliverToBoxAdapter(
-                  child: OverallBalanceCard(),
+                if (!isDesktop)
+                  const SliverToBoxAdapter(
+                    child: OverallBalanceCard(),
+                  ),
+                
+                // Active Groups Section Title
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: ext.spaceLG, vertical: ext.spaceMD),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Active Groups',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        if (isDesktop)
+                          ElevatedButton.icon(
+                            onPressed: () => CreateGroupSheet.show(context),
+                            icon: const Icon(Icons.add_rounded, size: 16),
+                            label: const Text('Create Group'),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-                // Unsettled Groups
+
+                // Unsettled Groups Grid
                 if (unsettledGroups.isNotEmpty)
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final group = unsettledGroups[index];
-                          return GroupCard(group: group);
-                        },
-                        childCount: unsettledGroups.length,
-                      ),
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: ext.spaceSM),
+                    sliver: groupsGrid(unsettledGroups),
                   )
                 else
                   SliverToBoxAdapter(
@@ -131,7 +174,7 @@ class GroupListPage extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(vertical: 32.0),
                       child: Center(
                         child: Text(
-                          'No unsettled groups',
+                          'No active unsettled groups',
                           style: theme.textTheme.bodyMedium?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -139,13 +182,14 @@ class GroupListPage extends ConsumerWidget {
                       ),
                     ),
                   ),
+
                 // History Section
                 if (settledGroups.isNotEmpty) ...[
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 16.0, top: 24.0, bottom: 8.0),
+                      padding: EdgeInsets.only(left: ext.spaceLG, top: ext.spaceXL, bottom: ext.spaceMD),
                       child: Text(
-                        'History',
+                        'History (Settled Groups)',
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: theme.colorScheme.onSurfaceVariant,
@@ -154,18 +198,11 @@ class GroupListPage extends ConsumerWidget {
                     ),
                   ),
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final group = settledGroups[index];
-                          return GroupCard(group: group);
-                        },
-                        childCount: settledGroups.length,
-                      ),
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: ext.spaceSM),
+                    sliver: groupsGrid(settledGroups),
                   ),
                 ],
+                const SliverToBoxAdapter(child: SizedBox(height: 80)),
               ],
             ),
           );

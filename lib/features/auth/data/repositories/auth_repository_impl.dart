@@ -52,8 +52,6 @@ class AuthRepositoryImpl implements IAuthRepository {
       email: email,
       password: password,
     );
-    // Auto-authenticate to save tokens after registration
-    await login(email: email, password: password);
     return userModel.toEntity();
   }
 
@@ -106,6 +104,26 @@ class AuthRepositoryImpl implements IAuthRepository {
       preferredCurrency: preferredCurrency,
     );
     return userModel.toEntity();
+  }
+
+  @override
+  Future<void> verifyEmail({required String token}) async {
+    await datasource.verifyEmail(token: token);
+  }
+
+  @override
+  Future<void> resendVerification({required String email}) async {
+    await datasource.resendVerification(email: email);
+  }
+
+  @override
+  Future<void> forgotPassword({required String email}) async {
+    await datasource.forgotPassword(email: email);
+  }
+
+  @override
+  Future<void> resetPassword({required String token, required String newPassword}) async {
+    await datasource.resetPassword(token: token, newPassword: newPassword);
   }
 }
 

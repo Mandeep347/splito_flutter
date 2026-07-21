@@ -35,4 +35,16 @@ abstract interface class IAuthRepository {
     String? name,
     String? preferredCurrency,
   });
+
+  /// Verifies user email address.
+  Future<void> verifyEmail({required String token});
+
+  /// Resends verification email.
+  Future<void> resendVerification({required String email});
+
+  /// Requests a password reset email.
+  Future<void> forgotPassword({required String email});
+
+  /// Resets user password using a token.
+  Future<void> resetPassword({required String token, required String newPassword});
 }

@@ -77,6 +77,7 @@ void main() {
       const spendingJan = MonthlySpending(
         year: 2026,
         month: 1,
+        monthLabel: 'Jan',
         totalAmount: 1000.0,
         expenseCount: 1,
         currency: 'INR',
@@ -86,6 +87,7 @@ void main() {
       const spendingDec = MonthlySpending(
         year: 2026,
         month: 12,
+        monthLabel: 'Dec',
         totalAmount: 2000.0,
         expenseCount: 2,
         currency: 'INR',
@@ -97,6 +99,7 @@ void main() {
       const spendingMar = MonthlySpending(
         year: 2026,
         month: 3,
+        monthLabel: 'Mar',
         totalAmount: 1500.0,
         expenseCount: 1,
         currency: 'INR',

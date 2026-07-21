@@ -17,9 +17,8 @@ class ExportService {
     buffer.write('═══════════════════════\n');
     buffer.write('\n');
     buffer.write('💰 Total Spent: ${_fmt(analytics.totalExpenses, currency)}\n');
-    buffer.write('📋 Expenses: ${analytics.activeExpenseCount}\n');
+    buffer.write('📋 Expenses: ${analytics.totalExpenseCount}\n');
     buffer.write('💸 Average: ${_fmt(analytics.averageExpenseAmount, currency)}\n');
-    buffer.write('📅 Period: ${_period(analytics)}\n');
     buffer.write('\n');
     buffer.write('👥 Who Paid:\n');
 
@@ -62,14 +61,6 @@ class ExportService {
       default:
         return '$c ';
     }
-  }
-
-  String _period(GroupAnalytics a) {
-    if (a.dateRangeStart == null) return 'All time';
-    if (a.dateRangeStart == a.dateRangeEnd) {
-      return _fmtDate(a.dateRangeStart!);
-    }
-    return '${_fmtDate(a.dateRangeStart!)} – ${_fmtDate(a.dateRangeEnd!)}';
   }
 
   String _fmtDate(DateTime dt) {

@@ -27,6 +27,8 @@ mixin _$UserModel {
   String get preferredCurrency => throw _privateConstructorUsedError;
   @JsonKey(name: 'is_active')
   bool get isActive => throw _privateConstructorUsedError;
+  @JsonKey(name: 'is_email_verified', defaultValue: false)
+  bool get isEmailVerified => throw _privateConstructorUsedError;
 
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
   @JsonKey(ignore: true)
@@ -44,7 +46,9 @@ abstract class $UserModelCopyWith<$Res> {
       String name,
       String email,
       @JsonKey(name: 'preferred_currency') String preferredCurrency,
-      @JsonKey(name: 'is_active') bool isActive});
+      @JsonKey(name: 'is_active') bool isActive,
+      @JsonKey(name: 'is_email_verified', defaultValue: false)
+      bool isEmailVerified});
 }
 
 /// @nodoc
@@ -65,6 +69,7 @@ class _$UserModelCopyWithImpl<$Res, $Val extends UserModel>
     Object? email = null,
     Object? preferredCurrency = null,
     Object? isActive = null,
+    Object? isEmailVerified = null,
   }) {
     return _then(_value.copyWith(
       id: null == id
@@ -87,6 +92,10 @@ class _$UserModelCopyWithImpl<$Res, $Val extends UserModel>
           ? _value.isActive
           : isActive // ignore: cast_nullable_to_non_nullable
               as bool,
+      isEmailVerified: null == isEmailVerified
+          ? _value.isEmailVerified
+          : isEmailVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
     ) as $Val);
   }
 }
@@ -104,7 +113,9 @@ abstract class _$$UserModelImplCopyWith<$Res>
       String name,
       String email,
       @JsonKey(name: 'preferred_currency') String preferredCurrency,
-      @JsonKey(name: 'is_active') bool isActive});
+      @JsonKey(name: 'is_active') bool isActive,
+      @JsonKey(name: 'is_email_verified', defaultValue: false)
+      bool isEmailVerified});
 }
 
 /// @nodoc
@@ -123,6 +134,7 @@ class __$$UserModelImplCopyWithImpl<$Res>
     Object? email = null,
     Object? preferredCurrency = null,
     Object? isActive = null,
+    Object? isEmailVerified = null,
   }) {
     return _then(_$UserModelImpl(
       id: null == id
@@ -145,6 +157,10 @@ class __$$UserModelImplCopyWithImpl<$Res>
           ? _value.isActive
           : isActive // ignore: cast_nullable_to_non_nullable
               as bool,
+      isEmailVerified: null == isEmailVerified
+          ? _value.isEmailVerified
+          : isEmailVerified // ignore: cast_nullable_to_non_nullable
+              as bool,
     ));
   }
 }
@@ -157,7 +173,9 @@ class _$UserModelImpl extends _UserModel {
       required this.name,
       required this.email,
       @JsonKey(name: 'preferred_currency') required this.preferredCurrency,
-      @JsonKey(name: 'is_active') required this.isActive})
+      @JsonKey(name: 'is_active') required this.isActive,
+      @JsonKey(name: 'is_email_verified', defaultValue: false)
+      required this.isEmailVerified})
       : super._();
 
   factory _$UserModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -175,10 +193,13 @@ class _$UserModelImpl extends _UserModel {
   @override
   @JsonKey(name: 'is_active')
   final bool isActive;
+  @override
+  @JsonKey(name: 'is_email_verified', defaultValue: false)
+  final bool isEmailVerified;
 
   @override
   String toString() {
-    return 'UserModel(id: $id, name: $name, email: $email, preferredCurrency: $preferredCurrency, isActive: $isActive)';
+    return 'UserModel(id: $id, name: $name, email: $email, preferredCurrency: $preferredCurrency, isActive: $isActive, isEmailVerified: $isEmailVerified)';
   }
 
   @override
@@ -192,13 +213,15 @@ class _$UserModelImpl extends _UserModel {
             (identical(other.preferredCurrency, preferredCurrency) ||
                 other.preferredCurrency == preferredCurrency) &&
             (identical(other.isActive, isActive) ||
-                other.isActive == isActive));
+                other.isActive == isActive) &&
+            (identical(other.isEmailVerified, isEmailVerified) ||
+                other.isEmailVerified == isEmailVerified));
   }
 
   @JsonKey(ignore: true)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, name, email, preferredCurrency, isActive);
+  int get hashCode => Object.hash(runtimeType, id, name, email,
+      preferredCurrency, isActive, isEmailVerified);
 
   @JsonKey(ignore: true)
   @override
@@ -216,13 +239,14 @@ class _$UserModelImpl extends _UserModel {
 
 abstract class _UserModel extends UserModel {
   const factory _UserModel(
-          {required final String id,
-          required final String name,
-          required final String email,
-          @JsonKey(name: 'preferred_currency')
-          required final String preferredCurrency,
-          @JsonKey(name: 'is_active') required final bool isActive}) =
-      _$UserModelImpl;
+      {required final String id,
+      required final String name,
+      required final String email,
+      @JsonKey(name: 'preferred_currency')
+      required final String preferredCurrency,
+      @JsonKey(name: 'is_active') required final bool isActive,
+      @JsonKey(name: 'is_email_verified', defaultValue: false)
+      required final bool isEmailVerified}) = _$UserModelImpl;
   const _UserModel._() : super._();
 
   factory _UserModel.fromJson(Map<String, dynamic> json) =
@@ -240,6 +264,9 @@ abstract class _UserModel extends UserModel {
   @override
   @JsonKey(name: 'is_active')
   bool get isActive;
+  @override
+  @JsonKey(name: 'is_email_verified', defaultValue: false)
+  bool get isEmailVerified;
   @override
   @JsonKey(ignore: true)
   _$$UserModelImplCopyWith<_$UserModelImpl> get copyWith =>
